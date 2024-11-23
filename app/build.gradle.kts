@@ -36,7 +36,11 @@ android {
 
 dependencies {
 
-    implementation(libs.appcompat)
+    implementation("androidx.appcompat:appcompat:1.7.0")  // Keep this one
+    implementation("com.android.volley:volley:1.2.1")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.code.gson:gson:2.10.1")  // Updated to latest stable
+
     implementation(libs.material)
     implementation(libs.constraintlayout)
     implementation(libs.navigation.fragment)
