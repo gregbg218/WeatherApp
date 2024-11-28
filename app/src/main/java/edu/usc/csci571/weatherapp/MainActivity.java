@@ -1,11 +1,13 @@
 package edu.usc.csci571.weatherapp;
 
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
@@ -14,6 +16,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -38,10 +41,9 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private RequestQueue requestQueue;
     private static final String TAG = "MainActivity";
-
     private String latitude;
-
     private String longitude;
+    private String locationInWords;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,16 +52,172 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         Log.d(TAG, "Activity created");
-
-        // Initialize Volley RequestQueue
         requestQueue = Volley.newRequestQueue(this);
-
-        // Fetch weather data
         getCurrentLocationData();
-
     }
 
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+        }
+        return false;
+    }
 
+    private void getCurrentLocationData() {
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, "No internet connection", Toast.LENGTH_SHORT).show();
+            fallbackToLosAngeles();
+            return;
+        }
+
+        String ipinfoUrl = "https://ipinfo.io/json?token=b2ac4982de4968";
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, ipinfoUrl, null,
+                response -> {
+                    try {
+                        String city = response.getString("city");
+                        String region = response.getString("region");
+                        this.locationInWords = city + ", " + region;
+                        String loc = response.getString("loc");
+
+                        String[] coordinates = loc.split(",");
+                        this.latitude = coordinates[0];
+                        this.longitude = coordinates[1];
+
+                        fetchWeatherData();
+                        fillHomePageCard2();
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing location data: " + e.getMessage());
+                        fallbackToLosAngeles();
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "Error fetching location: " + error.getMessage());
+                    fallbackToLosAngeles();
+                });
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                15000,
+                3,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+        requestQueue.add(request);
+    }
+
+    private void fallbackToLosAngeles() {
+        this.latitude = "34.0224";
+        this.longitude = "-118.2851";
+        this.locationInWords = "Los Angeles, California";
+        fetchWeatherData();
+        fillHomePageCard2();
+    }
+
+    private void fetchWeatherData() {
+        String url = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude + "&longitude=" + this.longitude;
+
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+
+                    try {
+                        if (response.has("success") && response.getBoolean("success")) {
+                            JSONArray dailyData = response.getJSONArray("data");
+                            populateWeatherTable(dailyData);
+                        } else {
+                            showError("Invalid weather data format");
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "JSON parsing error: " + e.getMessage());
+                        showError("Error parsing weather data");
+                    }
+                },
+                error -> {
+
+                    showError("Error fetching weather data");
+                    Log.e(TAG, "Error fetching weather data: " + error.getMessage());
+                });
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                15000,
+                3,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+        requestQueue.add(request);
+    }
+
+    private void fillHomePageCard2() {
+        String url = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
+                "&longitude=" + this.longitude + "&date=2024-11-28";
+
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+
+                    try {
+                        if (response.has("success") && response.getBoolean("success")) {
+                            JSONObject data = response.getJSONObject("data");
+                            fillHomePageCard1(data);
+
+                            TextView humidityView = findViewById(R.id.Humidity_Value);
+                            TextView windSpeedView = findViewById(R.id.Wind_Speed_Value);
+                            TextView visibilityView = findViewById(R.id.Visibility_Value);
+                            TextView pressureView = findViewById(R.id.Pressure_Value);
+
+                            if (humidityView != null && windSpeedView != null &&
+                                    visibilityView != null && pressureView != null) {
+
+                                double humidity = Double.parseDouble(data.getString("humidity"));
+                                humidityView.setText(String.format("%.0f%%", humidity));
+
+                                double windSpeed = Double.parseDouble(data.getString("windSpeed"));
+                                windSpeedView.setText(String.format("%.2f mph", windSpeed));
+
+                                double visibility = Double.parseDouble(data.getString("visibility"));
+                                visibilityView.setText(String.format("%.2f mi", visibility));
+
+                                double pressure = Double.parseDouble(data.getString("pressureSeaLevel"));
+                                pressureView.setText(String.format("%.2f inHg", pressure));
+                            }
+                        } else {
+                            showError("Invalid weather data format");
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "JSON parsing error: " + e.getMessage());
+                        showError("Error parsing weather data");
+                    }
+                },
+                error -> {
+
+                    showError("Error fetching weather data");
+                    Log.e(TAG, "Error fetching weather data: " + error.getMessage());
+                });
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                15000,
+                3,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+        requestQueue.add(request);
+    }
+
+    private void fillHomePageCard1(JSONObject data) throws JSONException {
+        ImageView todayImageView = findViewById(R.id.todayImage);
+        TextView todayTempView = findViewById(R.id.todayTemp);
+        TextView todayDescView = findViewById(R.id.todayDesc);
+        TextView locationTextView = findViewById(R.id.locationInWords);
+
+        String weatherCode = data.getString("status");
+        String weatherDescription = getWeatherDescription(weatherCode);
+
+        todayImageView.setImageResource(getWeatherIcon(weatherCode));
+
+        double temperature = Double.parseDouble(data.getString("temperature"));
+        todayTempView.setText(Math.round(temperature) + "°F");
+        todayDescView.setText(weatherDescription);
+        locationTextView.setText(locationInWords);
+    }
 
     private void populateWeatherTable(JSONArray dailyData) throws JSONException {
         TableLayout tableLayout = findViewById(R.id.weatherTable);
@@ -71,14 +229,11 @@ public class MainActivity extends AppCompatActivity {
         tableLayout.setStretchAllColumns(true);
 
         if (tableLayout == null) {
-            Log.e(TAG, "TableLayout is null!");
             return;
         }
 
-        Log.d(TAG, "Starting to populate table");
         tableLayout.removeAllViews();
 
-        // Add data rows
         for (int i = 0; i < dailyData.length(); i++) {
             JSONObject dayData = dailyData.getJSONObject(i);
             TableRow row = new TableRow(this);
@@ -88,11 +243,8 @@ public class MainActivity extends AppCompatActivity {
                     1.0f
             );
             row.setLayoutParams(rowParams);
-
-            // Alternate row colors
             row.setBackgroundColor(Color.parseColor("#1E1E1E"));
 
-            // Date column
             TextView dateView = new TextView(this);
             String dateString = dayData.getString("date");
             SimpleDateFormat inputFormat = new SimpleDateFormat("EEEE, MMM dd, yyyy");
@@ -102,18 +254,16 @@ public class MainActivity extends AppCompatActivity {
                 String formattedDate = outputFormat.format(date);
                 dateView.setText(formattedDate);
             } catch (ParseException e) {
-                Log.e(TAG, "Error parsing date: " + e.getMessage());
-                dateView.setText(dateString); // Fallback to original date string if parsing fails
+                dateView.setText(dateString);
             }
             dateView.setTextColor(Color.WHITE);
             dateView.setPadding(16, 0, 16, 0);
             dateView.setGravity(Gravity.CENTER);
             row.addView(dateView);
 
-            // Weather icon column
             ImageView weatherIcon = new ImageView(this);
             String weatherCode = String.valueOf(dayData.getInt("status"));
-            weatherIcon.setImageResource(getWeatherIconResource(weatherCode));
+            weatherIcon.setImageResource(getWeatherIcon(weatherCode));
             TableRow.LayoutParams iconParams = new TableRow.LayoutParams(
                     dpToPx(35),
                     dpToPx(35)
@@ -123,7 +273,6 @@ public class MainActivity extends AppCompatActivity {
             weatherIcon.setPadding(16, 0, 16, 0);
             row.addView(weatherIcon);
 
-            // Temperature Low column
             TextView lowTemp = new TextView(this);
             double tempLow = Double.parseDouble(dayData.getString("tempLow"));
             lowTemp.setText(String.valueOf(Math.round(tempLow)));
@@ -132,7 +281,6 @@ public class MainActivity extends AppCompatActivity {
             lowTemp.setGravity(Gravity.CENTER);
             row.addView(lowTemp);
 
-            // Temperature High column
             TextView highTemp = new TextView(this);
             double tempHigh = Double.parseDouble(dayData.getString("tempHigh"));
             highTemp.setText(String.valueOf(Math.round(tempHigh)));
@@ -143,95 +291,21 @@ public class MainActivity extends AppCompatActivity {
 
             tableLayout.addView(row);
 
-            // Add divider after each row (except last)
             if (i < dailyData.length() - 1) {
                 View divider = new View(this);
                 TableLayout.LayoutParams dividerParams = new TableLayout.LayoutParams(
                         TableLayout.LayoutParams.MATCH_PARENT,
-                        1  // height of 1px
+                        1
                 );
                 divider.setLayoutParams(dividerParams);
                 divider.setBackgroundColor(Color.parseColor("#3A3A3A"));
                 tableLayout.addView(divider);
             }
         }
-
-        // Add bottom padding to table
-//        tableLayout.setPadding(0, 0, 0, dpToPx(16));
     }
 
-
-
-    private void styleRow(TableRow row, boolean isAlternate) {
-        row.setBackgroundColor(isAlternate ? Color.DKGRAY : Color.BLACK);
-        row.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
-        // Add this debug code
-        Log.d(TAG, "Row styled and added");
-    }
-
-    private void styleHeaderRow(TableRow row) {
-        row.setBackgroundColor(ContextCompat.getColor(this, android.R.color.black));
-        row.setPadding(dpToPx(8), dpToPx(12), dpToPx(8), dpToPx(12));
-    }
-
-    private void styleTextView(TextView textView) {
-        textView.setTextColor(ContextCompat.getColor(this, android.R.color.white));
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        textView.setGravity(Gravity.CENTER);
-    }
-
-    private void styleHeaderTextView(TextView textView) {
-        textView.setTextColor(ContextCompat.getColor(this, android.R.color.white));
-        textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        textView.setTypeface(null, android.graphics.Typeface.BOLD);
-        textView.setGravity(Gravity.CENTER);
-    }
-
-    private String formatDate(String dateString) {
-        // Add date formatting if needed
-        return dateString;
-    }
-
-    private int dpToPx(int dp) {
-        float density = getResources().getDisplayMetrics().density;
-        return Math.round(dp * density);
-    }
-
-    // Your existing getWeatherIconResource method remains the same
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-
-    private void addTestData() {
-        TableLayout tableLayout = findViewById(R.id.weatherTable);
-        if (tableLayout == null) {
-            Log.e(TAG, "TableLayout is null");
-            return;
-        }
-
-        TableRow row = new TableRow(this);
-        TextView tv = new TextView(this);
-        tv.setText("TEST DATA");
-        tv.setTextColor(Color.WHITE);
-        row.addView(tv);
-        tableLayout.addView(row);
-        Log.d(TAG, "Test data added");
-    }
-    private int getWeatherIconResource(String weatherCode) {
-        switch (weatherCode) {
+    private int getWeatherIcon(String input) {
+        switch (input) {
             case "1000":
                 return R.drawable.clear_day;
             case "1100":
@@ -279,172 +353,113 @@ public class MainActivity extends AppCompatActivity {
             case "8000":
                 return R.drawable.tstorm;
             default:
-                return R.drawable.clear_day; // Default icon
+                return R.drawable.clear_day;
+        }
+    }
+
+    private String getWeatherDescription(String code) {
+        switch (code) {
+            case "1000":
+                return "Clear";
+            case "1100":
+                return "Mostly Clear";
+            case "1101":
+                return "Partly Cloudy";
+            case "1102":
+                return "Mostly Cloudy";
+            case "1001":
+                return "Cloudy";
+            case "2000":
+                return "Fog";
+            case "2100":
+                return "Light Fog";
+            case "4000":
+                return "Drizzle";
+            case "4001":
+                return "Rain";
+            case "4200":
+                return "Light Rain";
+            case "4201":
+                return "Heavy Rain";
+            case "5000":
+                return "Snow";
+            case "5001":
+                return "Flurries";
+            case "5100":
+                return "Light Snow";
+            case "5101":
+                return "Heavy Snow";
+            case "6000":
+                return "Freezing Drizzle";
+            case "6001":
+                return "Freezing Rain";
+            case "6200":
+                return "Light Freezing Rain";
+            case "6201":
+                return "Heavy Freezing Rain";
+            case "7000":
+                return "Ice Pellets";
+            case "7101":
+                return "Heavy Ice Pellets";
+            case "7102":
+                return "Light Ice Pellets";
+            case "8000":
+                return "Thunderstorm";
+            default:
+                return "Unknown";
         }
     }
 
 
-    private void getCurrentLocationData() {
-
-
-        String ipinfoUrl = "https://ipinfo.io/json?token=b2ac4982de4968";
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, ipinfoUrl, null,
-                response -> {
-                    try {
-                        Log.d(TAG, "IPinfo response: " + response.toString());
-
-                        // Get location details
-                        String city = response.getString("city");
-                        String region = response.getString("region");
-                        String loc = response.getString("loc"); // "this.latitude,longitude"
-
-                        // Parse coordinates
-                        String[] coordinates = loc.split(",");
-                        this.latitude = coordinates[0];
-                        this.longitude = coordinates[1];
-
-                        // Set location name (City, Region format)
-                        String locationName = city + ", " + region;
-                        // TODO: Update UI with location name
-
-                        // Fetch weather using coordinates
-                        fetchWeatherData();
-                        fillHomePageCard2();;
-
-
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Error parsing location data: " + e.getMessage());
-                        Toast.makeText(this, "Error getting location", Toast.LENGTH_SHORT).show();
-
-                        // Fallback to Los Angeles if IPinfo fails
-                        fallbackToLosAngeles();
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Error fetching location: " + error.getMessage());
-                    Toast.makeText(this, "Error fetching location", Toast.LENGTH_SHORT).show();
-
-                    // Fallback to Los Angeles if IPinfo fails
-                    fallbackToLosAngeles();
-                });
-
-        // Add timeouts to prevent hanging
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                10000, // 10 seconds timeout
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-        requestQueue.add(request);
-
-    }
-
-    private void fallbackToLosAngeles() {
-        // Use LA as fallback as per assignment requirements
-        this.latitude = "34.0224";
-        this.longitude = "-118.2851";
-        fetchWeatherData();
-        fillHomePageCard2();
-    }
-
-    private void fetchWeatherData() {
-        String url = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude + "&longitude=" + this.longitude;
-
-        Log.d(TAG, "Fetching weather data from: " + url);
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
-                response -> {
-                    Log.d(TAG, "Got response: " + response.toString());
-                    try {
-                        if (response.has("success") && response.getBoolean("success")) {
-                            JSONArray dailyData = response.getJSONArray("data");
-                            populateWeatherTable(dailyData);
-                        } else {
-                            Log.e(TAG, "Invalid response format");
-                            Toast.makeText(this, "Error fetching weather data", Toast.LENGTH_SHORT).show();
-                        }
-                    } catch (JSONException e) {
-                        Log.e(TAG, "JSON parsing error: " + e.getMessage());
-                        Toast.makeText(this, "Error parsing weather data", Toast.LENGTH_SHORT).show();
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Error fetching weather data: " + error.getMessage());
-                    Toast.makeText(this, "Error fetching weather data", Toast.LENGTH_SHORT).show();
-                });
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                10000, // 10 seconds timeout
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-        requestQueue.add(request);
+    private void showError(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
 
-    private void fillHomePageCard2() {
-        String url = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
-                "&longitude=" + this.longitude + "&date=2024-11-28";
-        Log.e(TAG, " greg weather data: " + url);
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
-                response -> {
-                    try {
-
-                        if (response.has("success") && response.getBoolean("success")) {
-                            JSONObject data = response.getJSONObject("data");
-                            Log.e(TAG, " greg weather data: " + data);
-                            // Get references to TextViews using their IDs
-                            TextView humidityView = (TextView) findViewById(R.id.Humidity_Value);
-                            TextView windSpeedView = (TextView) findViewById(R.id.Wind_Speed_Value);
-                            TextView visibilityView = (TextView) findViewById(R.id.Visibility_Value);
-                            TextView pressureView = (TextView) findViewById(R.id.Pressure_Value);
-
-                            if (humidityView != null && windSpeedView != null &&
-                                    visibilityView != null && pressureView != null) {
-                                Log.e(TAG, " inside" );
-                                // Humidity
-                                double humidity = Double.parseDouble(data.getString("humidity"));
-                                humidityView.setText(String.format("%.0f%%", humidity));
-
-                                // Wind Speed
-                                double windSpeed = Double.parseDouble(data.getString("windSpeed"));
-                                windSpeedView.setText(String.format("%.2f mph", windSpeed));
-
-                                // Visibility
-                                double visibility = Double.parseDouble(data.getString("visibility"));
-                                visibilityView.setText(String.format("%.2f mi", visibility));
-
-                                // Pressure
-                                double pressure = Double.parseDouble(data.getString("pressureSeaLevel"));
-                                pressureView.setText(String.format("%.2f inHg", pressure));
-
-                                // Set text color to white for all values
-//                                humidityView.setTextColor(Color.WHITE);
-//                                windSpeedView.setTextColor(Color.WHITE);
-//                                visibilityView.setTextColor(Color.WHITE);
-//                                pressureView.setTextColor(Color.WHITE);
-
-                                // Log the values to verify they're being set
-                                Log.d(TAG, "Humidity: " + humidityView.getText());
-                                Log.d(TAG, "Wind Speed: " + windSpeedView.getText());
-                                Log.d(TAG, "Visibility: " + visibilityView.getText());
-                                Log.d(TAG, "Pressure: " + pressureView.getText());
-                            } else {
-                                Log.e(TAG, "One or more TextViews not found");
-                            }
-
-                        } else {
-                            Log.e(TAG, "Invalid response format");
-                        }
-                    } catch (JSONException e) {
-                        Log.e(TAG, "JSON parsing error: " + e.getMessage());
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Error fetching weather data: " + error.getMessage());
-                });
-
-        requestQueue.add(request);
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (requestQueue != null) {
+            requestQueue.cancelAll(TAG);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (requestQueue != null) {
+            requestQueue.cancelAll(TAG);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (latitude != null && longitude != null) {
+            fetchWeatherData();
+            fillHomePageCard2();
+        } else {
+            getCurrentLocationData();
+        }
+    }
 }
