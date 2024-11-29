@@ -170,6 +170,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 double windSpeed = Double.parseDouble(data.getString("windSpeed"));
                                 windSpeedView.setText(String.format("%.2f mph", windSpeed));
+                                windSpeedView.setTextColor(Color.parseColor("#BEBEBE"));
 
                                 double visibility = Double.parseDouble(data.getString("visibility"));
                                 visibilityView.setText(String.format("%.2f mi", visibility));
@@ -241,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
                     1.0f
             );
             row.setLayoutParams(rowParams);
-            row.setBackgroundColor(Color.parseColor("#1E1E1E"));
+            //row.setBackgroundColor(Color.parseColor("#1E1E1E"));
 
             TextView dateView = new TextView(this);
             String dateString = dayData.getString("date");
@@ -254,7 +255,7 @@ public class MainActivity extends AppCompatActivity {
             } catch (ParseException e) {
                 dateView.setText(dateString);
             }
-            dateView.setTextColor(Color.WHITE);
+            dateView.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
             dateView.setPadding(16, 0, 16, 0);
             dateView.setGravity(Gravity.CENTER);
             row.addView(dateView);
@@ -274,7 +275,7 @@ public class MainActivity extends AppCompatActivity {
             TextView lowTemp = new TextView(this);
             double tempLow = Double.parseDouble(dayData.getString("tempLow"));
             lowTemp.setText(String.valueOf(Math.round(tempLow)));
-            lowTemp.setTextColor(Color.WHITE);
+            lowTemp.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
             lowTemp.setPadding(16, 0, 16, 0);
             lowTemp.setGravity(Gravity.CENTER);
             row.addView(lowTemp);
@@ -282,7 +283,7 @@ public class MainActivity extends AppCompatActivity {
             TextView highTemp = new TextView(this);
             double tempHigh = Double.parseDouble(dayData.getString("tempHigh"));
             highTemp.setText(String.valueOf(Math.round(tempHigh)));
-            highTemp.setTextColor(Color.WHITE);
+            highTemp.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
             highTemp.setPadding(16, 0, 16, 0);
             highTemp.setGravity(Gravity.CENTER);
             row.addView(highTemp);
