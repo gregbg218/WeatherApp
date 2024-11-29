@@ -145,8 +145,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fillHomePageCard2() {
+        // Get today's date formatted as YYYY-MM-DD
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+        String todaysDate = formatter.format(new Date());
+
         String url = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
-                "&longitude=" + this.longitude + "&date=2024-11-28";
+                "&longitude=" + this.longitude + "&date="+todaysDate;
 
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
