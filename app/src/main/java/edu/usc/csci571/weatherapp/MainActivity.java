@@ -10,20 +10,17 @@ import android.net.NetworkInfo;
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
@@ -203,15 +200,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fillHomePageCard1(JSONObject data) throws JSONException {
+        Log.e(TAG, "Card 1 fetching weather data: " + data);
         ImageView todayImageView = findViewById(R.id.todayImage);
         TextView todayTempView = findViewById(R.id.todayTemp);
         TextView todayDescView = findViewById(R.id.todayDesc);
         TextView locationTextView = findViewById(R.id.locationInWords);
 
-        String weatherCode = data.getString("status");
-        String weatherDescription = getWeatherDescription(weatherCode);
+        String weatherDescription = data.getString("status");
 
-        todayImageView.setImageResource(getWeatherIcon(weatherCode));
+
+        todayImageView.setImageResource(getWeatherIconFromDescription(weatherDescription));
 
         double temperature = Double.parseDouble(data.getString("temperature"));
         todayTempView.setText(Math.round(temperature) + "°F");
@@ -263,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
 
             ImageView weatherIcon = new ImageView(this);
             String weatherCode = String.valueOf(dayData.getInt("status"));
-            weatherIcon.setImageResource(getWeatherIcon(weatherCode));
+            weatherIcon.setImageResource(getWeatherIconFromCode(weatherCode));
             TableRow.LayoutParams iconParams = new TableRow.LayoutParams(
                     dpToPx(35),
                     dpToPx(35)
@@ -304,7 +302,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private int getWeatherIcon(String input) {
+    private int getWeatherIconFromCode(String input) {
         switch (input) {
             case "1000":
                 return R.drawable.clear_day;
@@ -357,56 +355,56 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getWeatherDescription(String code) {
-        switch (code) {
-            case "1000":
-                return "Clear";
-            case "1100":
-                return "Mostly Clear";
-            case "1101":
-                return "Partly Cloudy";
-            case "1102":
-                return "Mostly Cloudy";
-            case "1001":
-                return "Cloudy";
-            case "2000":
-                return "Fog";
-            case "2100":
-                return "Light Fog";
-            case "4000":
-                return "Drizzle";
-            case "4001":
-                return "Rain";
-            case "4200":
-                return "Light Rain";
-            case "4201":
-                return "Heavy Rain";
-            case "5000":
-                return "Snow";
-            case "5001":
-                return "Flurries";
-            case "5100":
-                return "Light Snow";
-            case "5101":
-                return "Heavy Snow";
-            case "6000":
-                return "Freezing Drizzle";
-            case "6001":
-                return "Freezing Rain";
-            case "6200":
-                return "Light Freezing Rain";
-            case "6201":
-                return "Heavy Freezing Rain";
-            case "7000":
-                return "Ice Pellets";
-            case "7101":
-                return "Heavy Ice Pellets";
-            case "7102":
-                return "Light Ice Pellets";
-            case "8000":
-                return "Thunderstorm";
+    private int getWeatherIconFromDescription(String description) {
+        switch (description.toLowerCase()) {
+            case "clear":
+                return R.drawable.clear_day;
+            case "mostly clear":
+                return R.drawable.mostly_clear_day;
+            case "partly cloudy":
+                return R.drawable.partly_cloudy_day;
+            case "mostly cloudy":
+                return R.drawable.mostly_cloudy;
+            case "cloudy":
+                return R.drawable.cloudy;
+            case "fog":
+                return R.drawable.fog;
+            case "light fog":
+                return R.drawable.fog_light;
+            case "drizzle":
+                return R.drawable.drizzle;
+            case "rain":
+                return R.drawable.rain;
+            case "light rain":
+                return R.drawable.rain_light;
+            case "heavy rain":
+                return R.drawable.rain_heavy;
+            case "snow":
+                return R.drawable.snow;
+            case "flurries":
+                return R.drawable.flurries;
+            case "light snow":
+                return R.drawable.snow_light;
+            case "heavy snow":
+                return R.drawable.snow_heavy;
+            case "freezing drizzle":
+                return R.drawable.freezing_drizzle;
+            case "freezing rain":
+                return R.drawable.freezing_rain;
+            case "light freezing rain":
+                return R.drawable.freezing_rain_light;
+            case "heavy freezing rain":
+                return R.drawable.freezing_rain_heavy;
+            case "ice pellets":
+                return R.drawable.ice_pellets;
+            case "heavy ice pellets":
+                return R.drawable.ice_pellets_heavy;
+            case "light ice pellets":
+                return R.drawable.ice_pellets_light;
+            case "thunderstorm":
+                return R.drawable.tstorm;
             default:
-                return "Unknown";
+                return R.drawable.clear_day;
         }
     }
 
