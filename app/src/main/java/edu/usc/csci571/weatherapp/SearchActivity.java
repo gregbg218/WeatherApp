@@ -192,9 +192,14 @@ public class SearchActivity extends AppCompatActivity {
                         suggestions.clear();
                         for (int i = 0; i < predictions.length(); i++) {
                             JSONObject prediction = predictions.getJSONObject(i);
-                            suggestions.add(prediction.getString("description"));
+                            JSONObject structuredFormatting = prediction.getJSONObject("structured_formatting");
+                            String city = structuredFormatting.getString("main_text");
+                            String state = structuredFormatting.getString("secondary_text")
+                                    .split(",")[0].trim(); // Get only the state part
+                            suggestions.add(city + ", " + state);
                         }
-                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, suggestions) {
+                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                                android.R.layout.simple_dropdown_item_1line, suggestions) {
                             @Override
                             public View getView(int position, View convertView, ViewGroup parent) {
                                 View view = super.getView(position, convertView, parent);
@@ -211,7 +216,6 @@ public class SearchActivity extends AppCompatActivity {
                 },
                 error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT).show()
         );
-
         requestQueue.add(request);
     }
 
@@ -331,6 +335,9 @@ public class SearchActivity extends AppCompatActivity {
         TextView todayTempView = findViewById(R.id.todayTemp);
         TextView todayDescView = findViewById(R.id.todayDesc);
         TextView locationTextView = findViewById(R.id.locationInWords);
+        // Remove ", USA" from the location text
+        String locationText = locationInWords.replaceAll(", USA$", "");
+        locationTextView.setText(locationText);
 
         String weatherDescription = data.optString("status", "");
         todayImageView.setImageResource(getWeatherIconFromDescription(weatherDescription));
