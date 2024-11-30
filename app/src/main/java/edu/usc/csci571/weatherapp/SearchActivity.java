@@ -3,9 +3,11 @@ package edu.usc.csci571.weatherapp;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -140,15 +142,15 @@ public class SearchActivity extends AppCompatActivity {
     private void setupAutoComplete() {
         searchAutoComplete.addTextChangedListener(new TextWatcher() {
             @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 String text = s.toString().trim();
                 if (text.length() >= 3) {
                     getAutocompleteSuggestions(text);
                 }
             }
-
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void afterTextChanged(Editable s) {}
@@ -182,7 +184,7 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void getAutocompleteSuggestions(String text) {
-        String url = BASE_URL + "/api/autocomplete/suggestions?input=" + text;
+        String url = BASE_URL + "/api/autocomplete/suggestions?input=" + Uri.encode(text);
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
@@ -192,6 +194,16 @@ public class SearchActivity extends AppCompatActivity {
                             JSONObject prediction = predictions.getJSONObject(i);
                             suggestions.add(prediction.getString("description"));
                         }
+                        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, suggestions) {
+                            @Override
+                            public View getView(int position, View convertView, ViewGroup parent) {
+                                View view = super.getView(position, convertView, parent);
+                                TextView text = (TextView) view.findViewById(android.R.id.text1);
+                                text.setTextColor(Color.WHITE);
+                                return view;
+                            }
+                        };
+                        searchAutoComplete.setAdapter(adapter);
                         adapter.notifyDataSetChanged();
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -200,11 +212,6 @@ public class SearchActivity extends AppCompatActivity {
                 error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT).show()
         );
 
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                15000,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        ));
         requestQueue.add(request);
     }
 
