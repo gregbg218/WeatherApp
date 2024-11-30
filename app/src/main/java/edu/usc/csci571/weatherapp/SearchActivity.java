@@ -1,6 +1,7 @@
 package edu.usc.csci571.weatherapp;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
@@ -60,12 +61,17 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
+        // Retrieve passed coordinates and location
+        Intent intent = getIntent();
+        latitude = intent.getStringExtra("latitude");
+        longitude = intent.getStringExtra("longitude");
+        locationInWords = intent.getStringExtra("locationInWords");
+
         // Initialize views
         searchAutoComplete = findViewById(R.id.search_autocomplete);
         progressBar = findViewById(R.id.progressBar);
         fabFavorite = findViewById(R.id.fab_favorite);
 
-        // Initialize back button with proper styling and click handling
         ImageButton backButton = findViewById(R.id.backButton);
         backButton.setOnClickListener(v -> finish());
 
@@ -81,49 +87,54 @@ public class SearchActivity extends AppCompatActivity {
                 return view;
             }
         };
-
         searchAutoComplete.setAdapter(adapter);
         searchAutoComplete.setThreshold(3);
         searchAutoComplete.setTextColor(Color.WHITE);
         searchAutoComplete.setHintTextColor(Color.GRAY);
 
-        // Show keyboard automatically when activity starts
-        searchAutoComplete.requestFocus();
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(searchAutoComplete, InputMethodManager.SHOW_IMPLICIT);
-
         // Initialize Volley RequestQueue
         requestQueue = Volley.newRequestQueue(this);
 
-        // Setup AutoComplete text change listener
-        searchAutoComplete.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                String text = s.toString().trim();
-                if (text.length() >= 3) {
-                    getAutocompleteSuggestions(text);
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        // Setup item click listener for suggestions
-        searchAutoComplete.setOnItemClickListener((parent, view, position, id) -> {
-            String selection = (String) parent.getItemAtPosition(position);
-            searchAutoComplete.setText(selection);
-            searchAutoComplete.dismissDropDown();
-            showLoading();
-            performSearch(selection);
-        });
+        // Setup AutoComplete
+        setupAutoComplete();
 
         // Setup click listeners for card and favorite button
         setupCardClickListener();
         setupFavoriteButton();
+
+        // Fetch initial weather data
+        if (latitude != null && longitude != null) {
+            fetchWeatherData();
+            fillHomePageCard2();
+        }
+    }
+
+
+    private void initializeViews() {
+        searchAutoComplete = findViewById(R.id.search_autocomplete);
+        progressBar = findViewById(R.id.progressBar);
+        fabFavorite = findViewById(R.id.fab_favorite);
+
+        ImageButton backButton = findViewById(R.id.backButton);
+        backButton.setOnClickListener(v -> finish());
+
+        suggestions = new ArrayList<>();
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, suggestions) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView text = (TextView) view.findViewById(android.R.id.text1);
+                text.setTextColor(Color.WHITE);
+                text.setPadding(32, 16, 32, 16);
+                return view;
+            }
+        };
+        searchAutoComplete.setAdapter(adapter);
+        searchAutoComplete.setThreshold(3);
+        searchAutoComplete.setTextColor(Color.WHITE);
+        searchAutoComplete.setHintTextColor(Color.GRAY);
+
+        requestQueue = Volley.newRequestQueue(this);
     }
 
     private void setupAutoComplete() {
@@ -171,63 +182,57 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void getAutocompleteSuggestions(String text) {
-        String url = BASE_URL + "/api/autocomplete/suggestions?text=" + text;
-
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+        String url = BASE_URL + "/api/autocomplete/suggestions?input=" + text;
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
-                    suggestions.clear();
-                    for (int i = 0; i < response.length(); i++) {
-                        try {
-                            suggestions.add(response.getString(i));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
+                    try {
+                        JSONArray predictions = response.getJSONArray("predictions");
+                        suggestions.clear();
+                        for (int i = 0; i < predictions.length(); i++) {
+                            JSONObject prediction = predictions.getJSONObject(i);
+                            suggestions.add(prediction.getString("description"));
                         }
+                        adapter.notifyDataSetChanged();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
-                    adapter.notifyDataSetChanged();
                 },
-                error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT).show());
+                error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT).show()
+        );
 
         request.setRetryPolicy(new DefaultRetryPolicy(
                 15000,
-                3,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
         requestQueue.add(request);
     }
 
     private void performSearch(String query) {
-        String[] parts = query.split(",");
-        if (parts.length < 2) {
-            Toast.makeText(this, "Invalid city format", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        selectedCity = parts[0].trim();
-        selectedState = parts[1].trim();
-        locationInWords = selectedCity + ", " + selectedState;
-
-        // Get coordinates for the selected city
-        String url = BASE_URL + "/api/weather/geocoding?city=" + selectedCity + "&state=" + selectedState;
-
+        showLoading();
+        String url = BASE_URL + "/api/autocomplete/suggestions?input=" + query;
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        latitude = response.getString("lat");
-                        longitude = response.getString("lon");
-                        fetchWeatherData();
-                        fillHomePageCard2();
-                        checkFavoriteStatus();
+                        JSONArray predictions = response.getJSONArray("predictions");
+                        if (predictions.length() > 0) {
+                            JSONObject prediction = predictions.getJSONObject(0);
+                            JSONObject structuredFormatting = prediction.getJSONObject("structured_formatting");
+                            selectedCity = structuredFormatting.getString("main_text");
+                            selectedState = structuredFormatting.getString("secondary_text");
+                            locationInWords = prediction.getString("description");
+                            fetchWeatherData();
+                            fillHomePageCard2();
+                            checkFavoriteStatus();
+                        } else {
+                            showError("No results found");
+                        }
                     } catch (JSONException e) {
                         showError("Error parsing location data");
                     }
                 },
-                error -> showError("Error fetching location data"));
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                15000,
-                3,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
+                error -> showError("Error fetching location data")
+        );
         requestQueue.add(request);
     }
 
@@ -292,36 +297,34 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void updateWeatherCard(JSONObject data) throws JSONException {
-        // Update Card 1
         ImageView todayImageView = findViewById(R.id.todayImage);
         TextView todayTempView = findViewById(R.id.todayTemp);
         TextView todayDescView = findViewById(R.id.todayDesc);
         TextView locationTextView = findViewById(R.id.locationInWords);
 
-        String weatherDescription = data.getString("status");
+        String weatherDescription = data.optString("status", "");
         todayImageView.setImageResource(getWeatherIconFromDescription(weatherDescription));
 
-        double temperature = Double.parseDouble(data.getString("temperature"));
+        double temperature = data.optDouble("temperature", 0);
         todayTempView.setText(Math.round(temperature) + "°F");
         todayDescView.setText(weatherDescription);
         locationTextView.setText(locationInWords);
 
-        // Update Card 2
         TextView humidityView = findViewById(R.id.Humidity_Value);
         TextView windSpeedView = findViewById(R.id.Wind_Speed_Value);
         TextView visibilityView = findViewById(R.id.Visibility_Value);
         TextView pressureView = findViewById(R.id.Pressure_Value);
 
-        double humidity = Double.parseDouble(data.getString("humidity"));
+        double humidity = data.optDouble("humidity", 0);
         humidityView.setText(String.format("%.0f%%", humidity * 100));
 
-        double windSpeed = Double.parseDouble(data.getString("windSpeed"));
+        double windSpeed = data.optDouble("windSpeed", 0);
         windSpeedView.setText(String.format("%.2f mph", windSpeed));
 
-        double visibility = Double.parseDouble(data.getString("visibility"));
+        double visibility = data.optDouble("visibility", 0);
         visibilityView.setText(String.format("%.2f mi", visibility));
 
-        double pressure = Double.parseDouble(data.getString("pressureSeaLevel"));
+        double pressure = data.optDouble("pressureSeaLevel", 0);
         pressureView.setText(String.format("%.2f inHg", pressure));
     }
 

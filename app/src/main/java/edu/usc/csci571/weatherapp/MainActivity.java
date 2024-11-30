@@ -51,8 +51,10 @@ public class MainActivity extends AppCompatActivity {
 
         ImageView searchIcon = findViewById(R.id.imageView10);
         searchIcon.setOnClickListener(v -> {
-            // Replace onSearchRequested() with direct intent
             Intent intent = new Intent(MainActivity.this, SearchActivity.class);
+            intent.putExtra("latitude", latitude);
+            intent.putExtra("longitude", longitude);
+            intent.putExtra("locationInWords", locationInWords);
             startActivity(intent);
         });
 
@@ -61,12 +63,7 @@ public class MainActivity extends AppCompatActivity {
         getCurrentLocationData();
     }
 
-    @Override
-    public boolean onSearchRequested() {
-        Bundle appData = new Bundle();
-        startSearch(null, false, appData, false);
-        return true;
-    }
+
 
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
