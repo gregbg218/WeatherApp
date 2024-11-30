@@ -217,8 +217,9 @@ public class SearchActivity extends AppCompatActivity {
 
     private void performSearch(String query) {
         showLoading();
-        String url = BASE_URL + "/api/autocomplete/suggestions?input=" + query;
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+        // First get the place details from autocomplete
+        String autocompleteUrl = BASE_URL + "/api/autocomplete/suggestions?input=" + Uri.encode(query);
+        JsonObjectRequest autocompleteRequest = new JsonObjectRequest(Request.Method.GET, autocompleteUrl, null,
                 response -> {
                     try {
                         JSONArray predictions = response.getJSONArray("predictions");
@@ -228,9 +229,31 @@ public class SearchActivity extends AppCompatActivity {
                             selectedCity = structuredFormatting.getString("main_text");
                             selectedState = structuredFormatting.getString("secondary_text");
                             locationInWords = prediction.getString("description");
-                            fetchWeatherData();
-                            fillHomePageCard2();
-                            checkFavoriteStatus();
+
+                            // Now get coordinates using geocoding API
+                            String geocodingUrl = BASE_URL + "/api/geocoding/coordinates?address=" + Uri.encode(locationInWords);
+                            JsonObjectRequest geocodingRequest = new JsonObjectRequest(Request.Method.GET, geocodingUrl, null,
+                                    geoResponse -> {
+                                        try {
+                                            if (geoResponse.getBoolean("success")) {
+                                                JSONObject coordinates = geoResponse.getJSONObject("coordinates");
+                                                latitude = coordinates.getString("latitude");
+                                                longitude = coordinates.getString("longitude");
+
+                                                // Now fetch weather data with new coordinates
+                                                fetchWeatherData();
+                                                fillHomePageCard2();
+                                                checkFavoriteStatus();
+                                            } else {
+                                                showError("Could not get location coordinates");
+                                            }
+                                        } catch (JSONException e) {
+                                            showError("Error parsing geocoding data");
+                                        }
+                                    },
+                                    error -> showError("Error getting coordinates")
+                            );
+                            requestQueue.add(geocodingRequest);
                         } else {
                             showError("No results found");
                         }
@@ -240,7 +263,7 @@ public class SearchActivity extends AppCompatActivity {
                 },
                 error -> showError("Error fetching location data")
         );
-        requestQueue.add(request);
+        requestQueue.add(autocompleteRequest);
     }
 
     private void fetchWeatherData() {
