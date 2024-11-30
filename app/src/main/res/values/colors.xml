@@ -4,4 +4,5 @@
     <color name="white">#FFFFFFFF</color>
     <color name="card_background">#1E1E1E</color>
     <color name="card_bg">#FFFFFF</color>
+    <color name="colorAccent">#FF4081</color>
 </resources>

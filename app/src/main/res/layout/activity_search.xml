@@ -16,52 +16,88 @@
             android:layout_height="match_parent"
             android:background="#121212">
 
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:padding="12dp"
+                android:src="@drawable/ic_arrow_back"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="#FFFFFF" />
+
             <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/materialToolbar4"
-                android:layout_width="332dp"
+                android:id="@+id/searchToolbar"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_marginStart="16dp"
                 android:background="#121212"
                 android:minHeight="?attr/actionBarSize"
                 android:textAlignment="textStart"
                 android:theme="?attr/actionBarTheme"
-                app:title="Weather App"
+                app:title="Search Results"
                 app:titleTextColor="#FFFFFF"
-                tools:layout_editor_absoluteY="42dp" />
+                app:layout_constraintStart_toEndOf="@id/backButton"
+                app:layout_constraintEnd_toEndOf="parent" />
 
-            <ImageView
-                android:id="@+id/imageView10"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/map_search" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Modified search bar styling -->
+    <AutoCompleteTextView
+        android:id="@+id/search_autocomplete"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="56dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="#2D2D2D"
+        android:hint="Enter city name"
+        android:padding="12dp"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#80FFFFFF"
+        android:textSize="16sp"
+        android:drawableStart="@drawable/ic_search"
+        android:drawablePadding="8dp"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1"
+        android:popupBackground="#2D2D2D" />
+
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="741dp"
         android:layout_marginTop="42dp"
-        android:background="#2D2D2D">
+        android:background="#2D2D2D"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="392dp"
-            android:layout_height="65dp"
-            android:background="#121212">
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/viewPager2"
-                android:layout_width="30dp"
-                android:layout_height="33dp"
-                android:layout_marginTop="16dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            android:id="@+id/searchResultLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Search Result"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:layout_marginTop="16dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cardView1"
@@ -163,6 +199,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">
 
+                <!-- Same content as main.xml cardView2 -->
                 <TextView
                     android:id="@+id/textView2"
                     android:layout_width="wrap_content"
@@ -301,6 +338,7 @@
         </androidx.cardview.widget.CardView>
 
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardView"
             android:layout_width="0dp"
             android:layout_height="277dp"
             android:layout_marginLeft="4dp"
@@ -324,21 +362,34 @@
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                </TableLayout>
+                    app:layout_constraintTop_toTopOf="parent"></TableLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
         </androidx.cardview.widget.CardView>
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="392dp"
-            android:layout_height="78dp"
-            android:background="#121212"
-            tools:layout_editor_absoluteX="0dp"
-            tools:layout_editor_absoluteY="731dp">
-
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Add the Floating Action Button for favorites -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_favorite"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:src="@drawable/map_marker_plus"
+            app:backgroundTint="#FFFFFF"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:tint="#000000" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Add AutoCompleteTextView for search -->
+    <AutoCompleteTextView
+        android:id="@+id/search_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="42dp"
+        android:background="#FFFFFF"
+        android:hint="Search for a city"
+        android:padding="8dp"
+        android:textColor="#000000"
+        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

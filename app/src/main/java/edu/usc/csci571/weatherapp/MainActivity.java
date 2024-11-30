@@ -4,6 +4,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -48,9 +49,23 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        ImageView searchIcon = findViewById(R.id.imageView10);
+        searchIcon.setOnClickListener(v -> {
+            // Replace onSearchRequested() with direct intent
+            Intent intent = new Intent(MainActivity.this, SearchActivity.class);
+            startActivity(intent);
+        });
+
         Log.d(TAG, "Activity created");
         requestQueue = Volley.newRequestQueue(this);
         getCurrentLocationData();
+    }
+
+    @Override
+    public boolean onSearchRequested() {
+        Bundle appData = new Bundle();
+        startSearch(null, false, appData, false);
+        return true;
     }
 
     private boolean isNetworkAvailable() {
