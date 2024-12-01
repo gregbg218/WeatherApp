@@ -10,41 +10,35 @@ import androidx.viewpager2.adapter.FragmentStateAdapter;
 public class WeatherPagerAdapter extends FragmentStateAdapter {
     private final String latitude;
     private final String longitude;
-    private final String locationInWords;
 
-    public WeatherPagerAdapter(@NonNull FragmentActivity fragmentActivity, String latitude,
-                               String longitude, String locationInWords) {
+    public WeatherPagerAdapter(FragmentActivity fragmentActivity, String latitude, String longitude) {
         super(fragmentActivity);
         this.latitude = latitude;
         this.longitude = longitude;
-        this.locationInWords = locationInWords;
     }
 
-    @NonNull
     @Override
     public Fragment createFragment(int position) {
         Fragment fragment;
         Bundle args = new Bundle();
         args.putString("latitude", latitude);
         args.putString("longitude", longitude);
-        args.putString("locationInWords", locationInWords);
 
         switch (position) {
             case 0:
                 fragment = new TodayFragment();
-                fragment.setArguments(args);
-                return fragment;
+                break;
             case 1:
                 fragment = new WeeklyFragment();
-                fragment.setArguments(args);
-                return fragment;
+                break;
             case 2:
                 fragment = new WeatherDataFragment();
-                fragment.setArguments(args);
-                return fragment;
+                break;
             default:
                 throw new IllegalStateException("Invalid position " + position);
         }
+        fragment.setArguments(args);
+        return fragment;
     }
 
     @Override

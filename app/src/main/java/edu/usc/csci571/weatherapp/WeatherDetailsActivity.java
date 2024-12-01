@@ -56,10 +56,9 @@ public class WeatherDetailsActivity extends AppCompatActivity {
         viewPager = findViewById(R.id.viewPager);
         tabLayout = findViewById(R.id.tabLayout);
 
-        // Pass location data to adapter
-        WeatherPagerAdapter adapter = new WeatherPagerAdapter(this, latitude, longitude, cityName);
+        WeatherPagerAdapter adapter = new WeatherPagerAdapter(this, latitude, longitude);
         viewPager.setAdapter(adapter);
-        viewPager.setOffscreenPageLimit(2);  // Prevent recreation of fragments
+        viewPager.setOffscreenPageLimit(2);
 
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             switch (position) {
@@ -78,7 +77,6 @@ public class WeatherDetailsActivity extends AppCompatActivity {
             }
         }).attach();
     }
-
     private void shareOnTwitter() {
         String tweetText = "Check Out " + cityName + "'s Weather! It is " + temperature + "°F! #CSCI571WeatherSearch";
         String tweetUrl = "https://twitter.com/intent/tweet?text=" + Uri.encode(tweetText);
