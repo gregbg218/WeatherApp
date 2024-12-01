@@ -109,6 +109,18 @@ public class SearchActivity extends AppCompatActivity {
             fetchWeatherData();
             fillHomePageCard2();
         }
+
+        findViewById(R.id.cardView1).setOnClickListener(v -> {
+            Intent detailsIntent = new Intent(SearchActivity.this, WeatherDetailsActivity.class);
+            detailsIntent.putExtra("latitude", latitude);
+            detailsIntent.putExtra("longitude", longitude);
+            detailsIntent.putExtra("city_name", locationInWords);
+            TextView tempView = findViewById(R.id.todayTemp);
+            String tempText = tempView.getText().toString();
+            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+            detailsIntent.putExtra("temperature", temperature);
+            startActivity(detailsIntent);
+        });
     }
 
 
@@ -182,6 +194,8 @@ public class SearchActivity extends AppCompatActivity {
             }
         });
     }
+
+
 
     private void getAutocompleteSuggestions(String text) {
         String url = BASE_URL + "/api/autocomplete/suggestions?input=" + Uri.encode(text);

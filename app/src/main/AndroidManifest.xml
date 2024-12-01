@@ -42,6 +42,17 @@
                 android:resource="@xml/searchable" />
         </activity>
 
+        <activity
+            android:name=".WeatherDetailsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.WeatherApp"
+            android:parentActivityName=".MainActivity">
+            <!-- Parent activity meta-data to support API level 4+ -->
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" />
+        </activity>
+
     </application>
 
 </manifest>

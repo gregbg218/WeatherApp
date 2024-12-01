@@ -58,6 +58,18 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        findViewById(R.id.cardView1).setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
+            intent.putExtra("latitude", latitude);
+            intent.putExtra("longitude", longitude);
+            intent.putExtra("city_name", locationInWords);
+            TextView tempView = findViewById(R.id.todayTemp);
+            String tempText = tempView.getText().toString();
+            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+            intent.putExtra("temperature", temperature);
+            startActivity(intent);
+        });
+
         Log.d(TAG, "Activity created");
         requestQueue = Volley.newRequestQueue(this);
         getCurrentLocationData();
