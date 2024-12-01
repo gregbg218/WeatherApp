@@ -132,7 +132,6 @@ public class TodayFragment extends Fragment {
         getActivity().runOnUiThread(() -> {
             try {
                 // Wind Speed
-                Log.e(TAG, "Wind is "+windSpeedValue);
                 double windSpeed = data.getDouble("windSpeed");
                 windSpeedValue.setText(String.format(Locale.US, "%.2f mph", windSpeed));
 
@@ -142,23 +141,23 @@ public class TodayFragment extends Fragment {
 
                 // Precipitation
                 double precipitation = data.getDouble("precipitationIntensity");
-                precipitationValue.setText(String.format(Locale.US, "%.0f%%", precipitation));
+                precipitationValue.setText(String.format(Locale.US, "%.2f%%", precipitation));
 
                 // Temperature
                 double temperature = data.getDouble("temperature");
                 temperatureValue.setText(String.format(Locale.US, "%d°F", Math.round(temperature)));
 
-                // Humidity
+                // Humidity - Remove multiplication by 100 as backend already provides percentage
                 double humidity = data.getDouble("humidity");
-                humidityValue.setText(String.format(Locale.US, "%.0f%%", humidity * 100));
+                humidityValue.setText(String.format(Locale.US, "%.2f%%", humidity));
 
                 // Visibility
                 double visibility = data.getDouble("visibility");
                 visibilityValue.setText(String.format(Locale.US, "%.2f mi", visibility));
 
-                // Cloud Cover
+                // Cloud Cover - Remove multiplication by 100 as backend already provides percentage
                 double cloudCover = data.getDouble("cloudCover");
-                cloudCoverValue.setText(String.format(Locale.US, "%.0f%%", cloudCover * 100));
+                cloudCoverValue.setText(String.format(Locale.US, "%.2f%%", cloudCover));
 
                 // UV Index
                 int uvIndex = data.getInt("uvIndex");
