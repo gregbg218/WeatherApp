@@ -21,6 +21,9 @@ public class WeatherDetailsActivity extends AppCompatActivity {
     private String cityName;
     private int temperature;
 
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,24 +56,24 @@ public class WeatherDetailsActivity extends AppCompatActivity {
         viewPager = findViewById(R.id.viewPager);
         tabLayout = findViewById(R.id.tabLayout);
 
-        WeatherPagerAdapter adapter = new WeatherPagerAdapter(this);
+        // Pass location data to adapter
+        WeatherPagerAdapter adapter = new WeatherPagerAdapter(this, latitude, longitude, cityName);
         viewPager.setAdapter(adapter);
+        viewPager.setOffscreenPageLimit(2);  // Prevent recreation of fragments
 
-        // Connect TabLayout with ViewPager2
-        // In setupViewPager() method, update the icon references
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
             switch (position) {
                 case 0:
                     tab.setText("TODAY");
-                    tab.setIcon(R.drawable.today);  // changed from calendar_today
+                    tab.setIcon(R.drawable.today);
                     break;
                 case 1:
                     tab.setText("WEEKLY");
-                    tab.setIcon(R.drawable.weekly_tab);  // changed from trending_up
+                    tab.setIcon(R.drawable.weekly_tab);
                     break;
                 case 2:
                     tab.setText("WEATHER DATA");
-                    tab.setIcon(R.drawable.ic_thermometer);  // changed from thermometer
+                    tab.setIcon(R.drawable.ic_thermometer);
                     break;
             }
         }).attach();

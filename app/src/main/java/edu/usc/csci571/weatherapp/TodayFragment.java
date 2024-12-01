@@ -62,28 +62,44 @@ public class TodayFragment extends Fragment {
 
     private void fetchTodayWeatherData() {
         showLoading();
-
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         String todaysDate = formatter.format(new Date());
 
         Bundle args = getArguments();
-        if (args == null) return;
+        if (args == null) {
+            Log.e(TAG, "Arguments bundle is null");
+            showError("Error: Unable to fetch weather data");
+            return;
+        }
 
         String latitude = args.getString("latitude");
         String longitude = args.getString("longitude");
 
+        if (latitude == null || longitude == null) {
+            Log.e(TAG, "Latitude or longitude is null");
+            showError("Error: Invalid location data");
+            return;
+        }
+
+        Log.d(TAG, "Fetching weather data for lat: " + latitude + ", lon: " + longitude + ", date: " + todaysDate);
         String url = "http://10.0.2.2:3001/api/weather/day-weather" +
                 "?latitude=" + latitude +
                 "&longitude=" + longitude +
                 "&date=" + todaysDate;
+        Log.d(TAG, "API URL: " + url);
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     hideLoading();
+                    Log.d(TAG, "API Response: " + response.toString());
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             JSONObject data = response.getJSONObject("data");
+                            Log.d(TAG, "Weather data: " + data.toString());
                             updateUI(data);
+                        } else {
+                            Log.e(TAG, "API returned success: false");
+                            showError("Invalid response from server");
                         }
                     } catch (JSONException e) {
                         Log.e(TAG, "Error parsing data: " + e.getMessage());
@@ -93,6 +109,9 @@ public class TodayFragment extends Fragment {
                 error -> {
                     hideLoading();
                     Log.e(TAG, "Error fetching data: " + error.getMessage());
+                    if (error.networkResponse != null) {
+                        Log.e(TAG, "Error Status Code: " + error.networkResponse.statusCode);
+                    }
                     showError("Error fetching weather data");
                 });
 
@@ -104,95 +123,86 @@ public class TodayFragment extends Fragment {
         requestQueue.add(request);
     }
 
-    private void updateUI(JSONObject data) throws JSONException {
-        // Wind Speed
-        double windSpeed = data.getDouble("windSpeed");
-        windSpeedValue.setText(String.format(Locale.US, "%.2f mph", windSpeed));
+    private void updateUI(final JSONObject data) {
+        if (getActivity() == null) {
+            Log.e(TAG, "Activity is null, cannot update UI");
+            return;
+        }
 
-        // Pressure
-        double pressure = data.getDouble("pressureSeaLevel");
-        pressureValue.setText(String.format(Locale.US, "%.2f inHg", pressure));
+        getActivity().runOnUiThread(() -> {
+            try {
+                // Wind Speed
+                Log.e(TAG, "Wind is "+windSpeedValue);
+                double windSpeed = data.getDouble("windSpeed");
+                windSpeedValue.setText(String.format(Locale.US, "%.2f mph", windSpeed));
 
-        // Precipitation
-        double precipitation = data.getDouble("precipitationIntensity");
-        precipitationValue.setText(String.format(Locale.US, "%.0f%%", precipitation));
+                // Pressure
+                double pressure = data.getDouble("pressureSeaLevel");
+                pressureValue.setText(String.format(Locale.US, "%.2f inHg", pressure));
 
-        // Temperature
-        double temperature = data.getDouble("temperature");
-        temperatureValue.setText(String.format(Locale.US, "%d°F", Math.round(temperature)));
+                // Precipitation
+                double precipitation = data.getDouble("precipitationIntensity");
+                precipitationValue.setText(String.format(Locale.US, "%.0f%%", precipitation));
 
-        // Humidity
-        double humidity = data.getDouble("humidity");
-        humidityValue.setText(String.format(Locale.US, "%.0f%%", humidity * 100));
+                // Temperature
+                double temperature = data.getDouble("temperature");
+                temperatureValue.setText(String.format(Locale.US, "%d°F", Math.round(temperature)));
 
-        // Visibility
-        double visibility = data.getDouble("visibility");
-        visibilityValue.setText(String.format(Locale.US, "%.2f mi", visibility));
+                // Humidity
+                double humidity = data.getDouble("humidity");
+                humidityValue.setText(String.format(Locale.US, "%.0f%%", humidity * 100));
 
-        // Cloud Cover
-        double cloudCover = data.getDouble("cloudCover");
-        cloudCoverValue.setText(String.format(Locale.US, "%.0f%%", cloudCover * 100));
+                // Visibility
+                double visibility = data.getDouble("visibility");
+                visibilityValue.setText(String.format(Locale.US, "%.2f mi", visibility));
 
-        // UV Index
-        int uvIndex = data.getInt("uvIndex");
-        uvIndexValue.setText(String.valueOf(uvIndex));
+                // Cloud Cover
+                double cloudCover = data.getDouble("cloudCover");
+                cloudCoverValue.setText(String.format(Locale.US, "%.0f%%", cloudCover * 100));
 
-        // Weather Status and Icon
-        String status = data.getString("status");
-        weatherStatus.setText(status);
-        weatherIcon.setImageResource(getWeatherIconFromDescription(status));
+                // UV Index
+                int uvIndex = data.getInt("uvIndex");
+                uvIndexValue.setText(String.valueOf(uvIndex));
+
+                // Weather Status and Icon
+                String status = data.getString("status");
+                weatherStatus.setText(status);
+                weatherIcon.setImageResource(getWeatherIconFromDescription(status));
+
+                Log.d(TAG, "UI updated successfully");
+            } catch (JSONException e) {
+                Log.e(TAG, "Error updating UI: " + e.getMessage());
+                showError("Error updating weather information");
+            }
+        });
     }
 
     private int getWeatherIconFromDescription(String description) {
         switch (description.toLowerCase()) {
-            case "clear":
-                return R.drawable.clear_day;
-            case "mostly clear":
-                return R.drawable.mostly_clear_day;
-            case "partly cloudy":
-                return R.drawable.partly_cloudy_day;
-            case "mostly cloudy":
-                return R.drawable.mostly_cloudy;
-            case "cloudy":
-                return R.drawable.cloudy;
-            case "fog":
-                return R.drawable.fog;
-            case "light fog":
-                return R.drawable.fog_light;
-            case "drizzle":
-                return R.drawable.drizzle;
-            case "rain":
-                return R.drawable.rain;
-            case "light rain":
-                return R.drawable.rain_light;
-            case "heavy rain":
-                return R.drawable.rain_heavy;
-            case "snow":
-                return R.drawable.snow;
-            case "flurries":
-                return R.drawable.flurries;
-            case "light snow":
-                return R.drawable.snow_light;
-            case "heavy snow":
-                return R.drawable.snow_heavy;
-            case "freezing drizzle":
-                return R.drawable.freezing_drizzle;
-            case "freezing rain":
-                return R.drawable.freezing_rain;
-            case "light freezing rain":
-                return R.drawable.freezing_rain_light;
-            case "heavy freezing rain":
-                return R.drawable.freezing_rain_heavy;
-            case "ice pellets":
-                return R.drawable.ice_pellets;
-            case "heavy ice pellets":
-                return R.drawable.ice_pellets_heavy;
-            case "light ice pellets":
-                return R.drawable.ice_pellets_light;
-            case "thunderstorm":
-                return R.drawable.tstorm;
-            default:
-                return R.drawable.clear_day;
+            case "clear": return R.drawable.clear_day;
+            case "mostly clear": return R.drawable.mostly_clear_day;
+            case "partly cloudy": return R.drawable.partly_cloudy_day;
+            case "mostly cloudy": return R.drawable.mostly_cloudy;
+            case "cloudy": return R.drawable.cloudy;
+            case "fog": return R.drawable.fog;
+            case "light fog": return R.drawable.fog_light;
+            case "drizzle": return R.drawable.drizzle;
+            case "rain": return R.drawable.rain;
+            case "light rain": return R.drawable.rain_light;
+            case "heavy rain": return R.drawable.rain_heavy;
+            case "snow": return R.drawable.snow;
+            case "flurries": return R.drawable.flurries;
+            case "light snow": return R.drawable.snow_light;
+            case "heavy snow": return R.drawable.snow_heavy;
+            case "freezing drizzle": return R.drawable.freezing_drizzle;
+            case "freezing rain": return R.drawable.freezing_rain;
+            case "light freezing rain": return R.drawable.freezing_rain_light;
+            case "heavy freezing rain": return R.drawable.freezing_rain_heavy;
+            case "ice pellets": return R.drawable.ice_pellets;
+            case "heavy ice pellets": return R.drawable.ice_pellets_heavy;
+            case "light ice pellets": return R.drawable.ice_pellets_light;
+            case "thunderstorm": return R.drawable.tstorm;
+            default: return R.drawable.clear_day;
         }
     }
 
