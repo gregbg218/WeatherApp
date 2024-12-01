@@ -42,7 +42,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
     implementation("com.google.code.gson:gson:2.10.1")  // Updated to latest stable
     implementation("com.github.highcharts:highcharts-android:11.4.8.1")
-
+    implementation("com.squareup.okhttp3:okhttp:3.4.1")
     implementation(libs.material)
     implementation(libs.constraintlayout)
     implementation(libs.navigation.fragment)
