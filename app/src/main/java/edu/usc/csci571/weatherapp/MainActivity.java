@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private String latitude;
     private String longitude;
     private String locationInWords;
+    private boolean isDataLoaded = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +50,13 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        setupClickListeners();
+        Log.d(TAG, "Activity created");
+        requestQueue = Volley.newRequestQueue(this);
+        getCurrentLocationData();
+    }
+
+    private void setupClickListeners() {
         ImageView searchIcon = findViewById(R.id.imageView10);
         searchIcon.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SearchActivity.class);
@@ -69,13 +77,7 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("temperature", temperature);
             startActivity(intent);
         });
-
-        Log.d(TAG, "Activity created");
-        requestQueue = Volley.newRequestQueue(this);
-        getCurrentLocationData();
     }
-
-
 
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -107,8 +109,9 @@ public class MainActivity extends AppCompatActivity {
                         this.latitude = coordinates[0];
                         this.longitude = coordinates[1];
 
-                        fetchWeatherData();
-                        fillHomePageCard2();
+                        if (!isDataLoaded) {
+                            fetchAllWeatherData();
+                        }
                     } catch (JSONException e) {
                         Log.e(TAG, "Error parsing location data: " + e.getMessage());
                         fallbackToLosAngeles();
@@ -131,17 +134,22 @@ public class MainActivity extends AppCompatActivity {
         this.latitude = "34.0224";
         this.longitude = "-118.2851";
         this.locationInWords = "Los Angeles, California";
-        fetchWeatherData();
-        fillHomePageCard2();
+        if (!isDataLoaded) {
+            fetchAllWeatherData();
+        }
     }
 
-    private void fetchWeatherData() {
-        String url = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude + "&longitude=" + this.longitude;
+    private void fetchAllWeatherData() {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+        String todaysDate = formatter.format(new Date());
 
+        String forecastUrl = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude +
+                "&longitude=" + this.longitude;
+        String todayUrl = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
+                "&longitude=" + this.longitude + "&date=" + todaysDate;
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+        JsonObjectRequest forecastRequest = new JsonObjectRequest(Request.Method.GET, forecastUrl, null,
                 response -> {
-
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             JSONArray dailyData = response.getJSONArray("data");
@@ -155,57 +163,16 @@ public class MainActivity extends AppCompatActivity {
                     }
                 },
                 error -> {
-
                     showError("Error fetching weather data");
                     Log.e(TAG, "Error fetching weather data: " + error.getMessage());
                 });
 
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                15000,
-                3,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-        requestQueue.add(request);
-    }
-
-    private void fillHomePageCard2() {
-        // Get today's date formatted as YYYY-MM-DD
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        String todaysDate = formatter.format(new Date());
-
-        String url = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
-                "&longitude=" + this.longitude + "&date="+todaysDate;
-
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+        JsonObjectRequest todayRequest = new JsonObjectRequest(Request.Method.GET, todayUrl, null,
                 response -> {
-
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             JSONObject data = response.getJSONObject("data");
-                            fillHomePageCard1(data);
-
-                            TextView humidityView = findViewById(R.id.Humidity_Value);
-                            TextView windSpeedView = findViewById(R.id.Wind_Speed_Value);
-                            TextView visibilityView = findViewById(R.id.Visibility_Value);
-                            TextView pressureView = findViewById(R.id.Pressure_Value);
-
-                            if (humidityView != null && windSpeedView != null &&
-                                    visibilityView != null && pressureView != null) {
-
-                                double humidity = Double.parseDouble(data.getString("humidity"));
-                                humidityView.setText(String.format("%.0f%%", humidity));
-
-                                double windSpeed = Double.parseDouble(data.getString("windSpeed"));
-                                windSpeedView.setText(String.format("%.2f mph", windSpeed));
-                                windSpeedView.setTextColor(Color.parseColor("#BEBEBE"));
-
-                                double visibility = Double.parseDouble(data.getString("visibility"));
-                                visibilityView.setText(String.format("%.2f mi", visibility));
-
-                                double pressure = Double.parseDouble(data.getString("pressureSeaLevel"));
-                                pressureView.setText(String.format("%.2f inHg", pressure));
-                            }
+                            updateTodayWeather(data);
                         } else {
                             showError("Invalid weather data format");
                         }
@@ -215,35 +182,55 @@ public class MainActivity extends AppCompatActivity {
                     }
                 },
                 error -> {
-
                     showError("Error fetching weather data");
                     Log.e(TAG, "Error fetching weather data: " + error.getMessage());
                 });
 
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                15000,
-                3,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        forecastRequest.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        todayRequest.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
-        requestQueue.add(request);
+        requestQueue.add(forecastRequest);
+        requestQueue.add(todayRequest);
+
+        isDataLoaded = true;
     }
 
-    private void fillHomePageCard1(JSONObject data) throws JSONException {
-        Log.e(TAG, "Card 1 fetching weather data: " + data);
+    private void updateTodayWeather(JSONObject data) throws JSONException {
+        Log.d(TAG, "Updating today's weather with data: " + data);
+
+        // Update Card 1
         ImageView todayImageView = findViewById(R.id.todayImage);
         TextView todayTempView = findViewById(R.id.todayTemp);
         TextView todayDescView = findViewById(R.id.todayDesc);
         TextView locationTextView = findViewById(R.id.locationInWords);
 
         String weatherDescription = data.getString("status");
-
-
         todayImageView.setImageResource(getWeatherIconFromDescription(weatherDescription));
-
         double temperature = Double.parseDouble(data.getString("temperature"));
         todayTempView.setText(Math.round(temperature) + "°F");
         todayDescView.setText(weatherDescription);
         locationTextView.setText(locationInWords);
+
+        // Update Card 2
+        TextView humidityView = findViewById(R.id.Humidity_Value);
+        TextView windSpeedView = findViewById(R.id.Wind_Speed_Value);
+        TextView visibilityView = findViewById(R.id.Visibility_Value);
+        TextView pressureView = findViewById(R.id.Pressure_Value);
+
+        if (humidityView != null && windSpeedView != null && visibilityView != null && pressureView != null) {
+            double humidity = Double.parseDouble(data.getString("humidity"));
+            humidityView.setText(String.format("%.0f%%", humidity));
+
+            double windSpeed = Double.parseDouble(data.getString("windSpeed"));
+            windSpeedView.setText(String.format("%.2f mph", windSpeed));
+            windSpeedView.setTextColor(Color.parseColor("#BEBEBE"));
+
+            double visibility = Double.parseDouble(data.getString("visibility"));
+            visibilityView.setText(String.format("%.2f mi", visibility));
+
+            double pressure = Double.parseDouble(data.getString("pressureSeaLevel"));
+            pressureView.setText(String.format("%.2f inHg", pressure));
+        }
     }
 
     private void populateWeatherTable(JSONArray dailyData) throws JSONException {
@@ -270,7 +257,6 @@ public class MainActivity extends AppCompatActivity {
                     1.0f
             );
             row.setLayoutParams(rowParams);
-            //row.setBackgroundColor(Color.parseColor("#1E1E1E"));
 
             TextView dateView = new TextView(this);
             String dateString = dayData.getString("date");
@@ -283,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
             } catch (ParseException e) {
                 dateView.setText(dateString);
             }
-            dateView.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
+            dateView.setTextColor(Color.parseColor("#BEBEBE"));
             dateView.setPadding(16, 0, 16, 0);
             dateView.setGravity(Gravity.CENTER);
             row.addView(dateView);
@@ -303,7 +289,7 @@ public class MainActivity extends AppCompatActivity {
             TextView lowTemp = new TextView(this);
             double tempLow = Double.parseDouble(dayData.getString("tempLow"));
             lowTemp.setText(String.valueOf(Math.round(tempLow)));
-            lowTemp.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
+            lowTemp.setTextColor(Color.parseColor("#BEBEBE"));
             lowTemp.setPadding(16, 0, 16, 0);
             lowTemp.setGravity(Gravity.CENTER);
             row.addView(lowTemp);
@@ -311,7 +297,7 @@ public class MainActivity extends AppCompatActivity {
             TextView highTemp = new TextView(this);
             double tempHigh = Double.parseDouble(dayData.getString("tempHigh"));
             highTemp.setText(String.valueOf(Math.round(tempHigh)));
-            highTemp.setTextColor(Color.parseColor("#BEBEBE"));  // Changed to #BEBEBE
+            highTemp.setTextColor(Color.parseColor("#BEBEBE"));
             highTemp.setPadding(16, 0, 16, 0);
             highTemp.setGravity(Gravity.CENTER);
             row.addView(highTemp);
@@ -333,115 +319,65 @@ public class MainActivity extends AppCompatActivity {
 
     private int getWeatherIconFromCode(String input) {
         switch (input) {
-            case "1000":
-                return R.drawable.clear_day;
-            case "1100":
-                return R.drawable.mostly_clear_day;
-            case "1101":
-                return R.drawable.partly_cloudy_day;
-            case "1102":
-                return R.drawable.mostly_cloudy;
-            case "1001":
-                return R.drawable.cloudy;
-            case "2000":
-                return R.drawable.fog;
-            case "2100":
-                return R.drawable.fog_light;
-            case "4000":
-                return R.drawable.drizzle;
-            case "4001":
-                return R.drawable.rain;
-            case "4200":
-                return R.drawable.rain_light;
-            case "4201":
-                return R.drawable.rain_heavy;
-            case "5000":
-                return R.drawable.snow;
-            case "5001":
-                return R.drawable.flurries;
-            case "5100":
-                return R.drawable.snow_light;
-            case "5101":
-                return R.drawable.snow_heavy;
-            case "6000":
-                return R.drawable.freezing_drizzle;
-            case "6001":
-                return R.drawable.freezing_rain;
-            case "6200":
-                return R.drawable.freezing_rain_light;
-            case "6201":
-                return R.drawable.freezing_rain_heavy;
-            case "7000":
-                return R.drawable.ice_pellets;
-            case "7101":
-                return R.drawable.ice_pellets_heavy;
-            case "7102":
-                return R.drawable.ice_pellets_light;
-            case "8000":
-                return R.drawable.tstorm;
-            default:
-                return R.drawable.clear_day;
+            case "1000": return R.drawable.clear_day;
+            case "1100": return R.drawable.mostly_clear_day;
+            case "1101": return R.drawable.partly_cloudy_day;
+            case "1102": return R.drawable.mostly_cloudy;
+            case "1001": return R.drawable.cloudy;
+            case "2000": return R.drawable.fog;
+            case "2100": return R.drawable.fog_light;
+            case "4000": return R.drawable.drizzle;
+            case "4001": return R.drawable.rain;
+            case "4200": return R.drawable.rain_light;
+            case "4201": return R.drawable.rain_heavy;
+            case "5000": return R.drawable.snow;
+            case "5001": return R.drawable.flurries;
+            case "5100": return R.drawable.snow_light;
+            case "5101": return R.drawable.snow_heavy;
+            case "6000": return R.drawable.freezing_drizzle;
+            case "6001": return R.drawable.freezing_rain;
+            case "6200": return R.drawable.freezing_rain_light;
+            case "6201": return R.drawable.freezing_rain_heavy;
+            case "7000": return R.drawable.ice_pellets;
+            case "7101": return R.drawable.ice_pellets_heavy;
+            case "7102": return R.drawable.ice_pellets_light;
+            case "8000": return R.drawable.tstorm;
+            default: return R.drawable.clear_day;
         }
     }
 
     private int getWeatherIconFromDescription(String description) {
         switch (description.toLowerCase()) {
-            case "clear":
-                return R.drawable.clear_day;
-            case "mostly clear":
-                return R.drawable.mostly_clear_day;
-            case "partly cloudy":
-                return R.drawable.partly_cloudy_day;
-            case "mostly cloudy":
-                return R.drawable.mostly_cloudy;
-            case "cloudy":
-                return R.drawable.cloudy;
-            case "fog":
-                return R.drawable.fog;
-            case "light fog":
-                return R.drawable.fog_light;
-            case "drizzle":
-                return R.drawable.drizzle;
-            case "rain":
-                return R.drawable.rain;
-            case "light rain":
-                return R.drawable.rain_light;
-            case "heavy rain":
-                return R.drawable.rain_heavy;
-            case "snow":
-                return R.drawable.snow;
-            case "flurries":
-                return R.drawable.flurries;
-            case "light snow":
-                return R.drawable.snow_light;
-            case "heavy snow":
-                return R.drawable.snow_heavy;
-            case "freezing drizzle":
-                return R.drawable.freezing_drizzle;
-            case "freezing rain":
-                return R.drawable.freezing_rain;
-            case "light freezing rain":
-                return R.drawable.freezing_rain_light;
-            case "heavy freezing rain":
-                return R.drawable.freezing_rain_heavy;
-            case "ice pellets":
-                return R.drawable.ice_pellets;
-            case "heavy ice pellets":
-                return R.drawable.ice_pellets_heavy;
-            case "light ice pellets":
-                return R.drawable.ice_pellets_light;
-            case "thunderstorm":
-                return R.drawable.tstorm;
-            default:
-                return R.drawable.clear_day;
+            case "clear": return R.drawable.clear_day;
+            case "mostly clear": return R.drawable.mostly_clear_day;
+            case "partly cloudy": return R.drawable.partly_cloudy_day;
+            case "mostly cloudy": return R.drawable.mostly_cloudy;
+            case "cloudy": return R.drawable.cloudy;
+            case "fog": return R.drawable.fog;
+            case "light fog": return R.drawable.fog_light;
+            case "drizzle": return R.drawable.drizzle;
+            case "rain": return R.drawable.rain;
+            case "light rain": return R.drawable.rain_light;
+            case "heavy rain": return R.drawable.rain_heavy;
+            case "snow": return R.drawable.snow;
+            case "flurries": return R.drawable.flurries;
+            case "light snow": return R.drawable.snow_light;
+            case "heavy snow": return R.drawable.snow_heavy;
+            case "freezing drizzle": return R.drawable.freezing_drizzle;
+            case "freezing rain": return R.drawable.freezing_rain;
+            case "light freezing rain": return R.drawable.freezing_rain_light;
+            case "heavy freezing rain": return R.drawable.freezing_rain_heavy;
+            case "ice pellets": return R.drawable.ice_pellets;
+            case "heavy ice pellets": return R.drawable.ice_pellets_heavy;
+            case "light ice pellets": return R.drawable.ice_pellets_light;
+            case "thunderstorm": return R.drawable.tstorm;
+            default: return R.drawable.clear_day;
         }
     }
-
 
     private void showError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
-
 
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
@@ -482,10 +418,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        if (latitude != null && longitude != null) {
-            fetchWeatherData();
-            fillHomePageCard2();
-        } else {
+        if (latitude == null || longitude == null) {
             getCurrentLocationData();
         }
     }
