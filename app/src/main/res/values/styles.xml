@@ -5,4 +5,8 @@
         <item name="tabGravity">center</item>
         <item name="tabIndicatorHeight">0dp</item>
     </style>
+
+    <style name="ProgressBarStyle">
+        <item name="colorAccent">#BEBEBE</item>
+    </style>
 </resources>

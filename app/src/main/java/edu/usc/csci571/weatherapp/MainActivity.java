@@ -22,12 +22,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.tabs.TabLayout;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,6 +46,10 @@ public class MainActivity extends AppCompatActivity {
     private String locationInWords;
     private boolean isDataLoaded = false;
 
+    // Add after other private variables
+    private ViewPager2 viewPager;
+    private TabLayout tabDots;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,6 +60,56 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Activity created");
         requestQueue = Volley.newRequestQueue(this);
         getCurrentLocationData();
+
+        setupFavoritesPager();
+    }
+
+
+    private void setupFavoritesPager() {
+        viewPager = findViewById(R.id.viewPager2);
+        tabDots = findViewById(R.id.tabDots);
+
+        // Clear existing tabs first
+        tabDots.removeAllTabs();
+
+        // Set up dots
+        tabDots.addTab(tabDots.newTab());
+        tabDots.addTab(tabDots.newTab());
+
+        tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                int position = tab.getPosition();
+                if (position == 1) {
+                    // Reset state for Houston data
+                    isDataLoaded = false;
+
+                    // Set Houston coordinates
+                    latitude = "29.7604";
+                    longitude = "-95.3698";
+                    locationInWords = "Houston, TX, USA";
+
+                    // Use existing method to fetch and display data
+                    fetchAllWeatherData();
+                } else {
+                    // Reset state for current location
+                    isDataLoaded = false;
+
+                    // Get current location data again
+                    getCurrentLocationData();
+                }
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+                // Not needed but must be implemented
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+                // Not needed but must be implemented
+            }
+        });
     }
 
     private void setupClickListeners() {
@@ -95,11 +151,18 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // Show loading state while getting location
+        findViewById(R.id.progressBar).setVisibility(View.VISIBLE);
+        findViewById(R.id.mainContentLayout).setVisibility(View.GONE);
+
         String ipinfoUrl = "https://ipinfo.io/json?token=b2ac4982de4968";
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, ipinfoUrl, null,
                 response -> {
                     try {
+                        // Select the first tab (current location)
+                        tabDots.selectTab(tabDots.getTabAt(0));
+
                         String city = response.getString("city");
                         String region = response.getString("region");
                         this.locationInWords = city + ", " + region;
@@ -112,14 +175,22 @@ public class MainActivity extends AppCompatActivity {
                         if (!isDataLoaded) {
                             fetchAllWeatherData();
                         }
+
+                        // Hide loading state after data is loaded
+                        findViewById(R.id.progressBar).setVisibility(View.GONE);
+                        findViewById(R.id.mainContentLayout).setVisibility(View.VISIBLE);
                     } catch (JSONException e) {
                         Log.e(TAG, "Error parsing location data: " + e.getMessage());
                         fallbackToLosAngeles();
+                        findViewById(R.id.progressBar).setVisibility(View.GONE);
+                        findViewById(R.id.mainContentLayout).setVisibility(View.VISIBLE);
                     }
                 },
                 error -> {
                     Log.e(TAG, "Error fetching location: " + error.getMessage());
                     fallbackToLosAngeles();
+                    findViewById(R.id.progressBar).setVisibility(View.GONE);
+                    findViewById(R.id.mainContentLayout).setVisibility(View.VISIBLE);
                 });
 
         request.setRetryPolicy(new DefaultRetryPolicy(
@@ -127,10 +198,14 @@ public class MainActivity extends AppCompatActivity {
                 3,
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
+        request.setTag(TAG);
         requestQueue.add(request);
     }
 
     private void fallbackToLosAngeles() {
+        // Add this line at the start
+        tabDots.selectTab(tabDots.getTabAt(0));
+
         this.latitude = "34.0224";
         this.longitude = "-118.2851";
         this.locationInWords = "Los Angeles, California";
