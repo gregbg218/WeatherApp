@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="TabDotStyle" parent="Widget.MaterialComponents.TabLayout">
+        <item name="tabBackground">@drawable/tab_selector</item>
+        <item name="tabGravity">center</item>
+        <item name="tabIndicatorHeight">0dp</item>
+    </style>
+</resources>
