@@ -1,5 +1,7 @@
 package edu.usc.csci571.weatherapp;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -65,6 +67,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    private JSONArray favoritesData; // Add this class variable
+
     private void setupFavoritesPager() {
         viewPager = findViewById(R.id.viewPager2);
         tabDots = findViewById(R.id.tabDots);
@@ -72,44 +76,153 @@ public class MainActivity extends AppCompatActivity {
         // Clear existing tabs first
         tabDots.removeAllTabs();
 
-        // Set up dots
-        tabDots.addTab(tabDots.newTab());
+        // Add current location tab
         tabDots.addTab(tabDots.newTab());
 
+        String favoritesUrl = "http://10.0.2.2:3001/api/favorites/list";
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, favoritesUrl, null,
+                response -> {
+                    try {
+                        if (response.has("success") && response.getBoolean("success")) {
+                            favoritesData = response.getJSONArray("data");
+
+                            // Add a tab for each favorite
+                            for (int i = 0; i < favoritesData.length(); i++) {
+                                tabDots.addTab(tabDots.newTab());
+                            }
+
+                            tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+                                @Override
+                                public void onTabSelected(TabLayout.Tab tab) {
+                                    int position = tab.getPosition();
+                                    if (position == 0) {
+                                        // First dot - current location
+                                        isDataLoaded = false;
+                                        getCurrentLocationData();
+                                    } else {
+                                        try {
+                                            JSONObject favorite = favoritesData.getJSONObject(position - 1);
+                                            String city = favorite.getString("city");
+                                            String state = favorite.getString("state");
+                                            locationInWords = city + ", " + state;
+                                            isDataLoaded = false;
+
+                                            // Fixed geocoding URL
+                                            String encodedCity = URLEncoder.encode(city, "UTF-8");
+                                            String encodedState = URLEncoder.encode(state.replace(", USA", ""), "UTF-8");
+                                            String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" + encodedCity +","+ encodedState;
+                                            JsonObjectRequest geoRequest = new JsonObjectRequest(
+                                                    Request.Method.GET, geocodingUrl, null,
+                                                    geoResponse -> {
+                                                        try {
+                                                            if (geoResponse.getBoolean("success")) {
+                                                                JSONObject data = geoResponse.getJSONObject("coordinates");
+                                                                latitude = data.getString("latitude");
+                                                                longitude = data.getString("longitude");
+                                                                fetchAllWeatherData();
+                                                            }
+                                                        } catch (JSONException e) {
+                                                            Log.e(TAG, "Error parsing geocoding: " + e.getMessage()+" " +geocodingUrl);
+                                                        }
+                                                    },
+                                                    error -> Log.e(TAG, "Geocoding error: " + error.getMessage())
+                                            );
+
+                                            geoRequest.setRetryPolicy(new DefaultRetryPolicy(
+                                                    15000,
+                                                    3,
+                                                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+                                            requestQueue.add(geoRequest);
+
+                                        } catch (JSONException | UnsupportedEncodingException e) {
+                                            Log.e(TAG, "Error processing favorite: " + e.getMessage());
+                                        }
+                                    }
+                                }
+
+                                @Override
+                                public void onTabUnselected(TabLayout.Tab tab) {}
+
+                                @Override
+                                public void onTabReselected(TabLayout.Tab tab) {}
+                            });
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing favorites: " + e.getMessage());
+                    }
+                },
+                error -> Log.e(TAG, "Error fetching favorites: " + error.getMessage()));
+
+        request.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        requestQueue.add(request);
+    }
+
+    private void setupTabListener(JSONArray favorites) {
         tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 int position = tab.getPosition();
-                if (position == 1) {
-                    // Reset state for Houston data
-                    isDataLoaded = false;
+                isDataLoaded = false;
 
-                    // Set Houston coordinates
-                    latitude = "29.7604";
-                    longitude = "-95.3698";
-                    locationInWords = "Houston, TX, USA";
-
-                    // Use existing method to fetch and display data
-                    fetchAllWeatherData();
-                } else {
-                    // Reset state for current location
-                    isDataLoaded = false;
-
-                    // Get current location data again
+                if (position == 0) {
+                    // Current location tab
                     getCurrentLocationData();
+                } else {
+                    try {
+                        // Get the corresponding favorite
+                        JSONObject favorite = favorites.getJSONObject(position - 1);
+                        String city = favorite.getString("city");
+                        String state = favorite.getString("state");
+                        locationInWords = city + ", " + state;
+
+                        // Get coordinates for the city through geocoding
+                        getCoordinatesAndUpdateWeather(city, state);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error accessing favorite: " + e.getMessage());
+                    }
                 }
             }
 
             @Override
             public void onTabUnselected(TabLayout.Tab tab) {
-                // Not needed but must be implemented
+                // Not needed
             }
 
             @Override
             public void onTabReselected(TabLayout.Tab tab) {
-                // Not needed but must be implemented
+                // Not needed
             }
         });
+    }
+
+    private void getCoordinatesAndUpdateWeather(String city, String state) {
+        String geocodingUrl = null;
+        try {
+            geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" + URLEncoder.encode(city + "," + state, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, geocodingUrl, null,
+                response -> {
+                    try {
+                        if (response.has("success") && response.getBoolean("success")) {
+                            JSONObject data = response.getJSONObject("coordinates");
+                            latitude = data.getString("latitude");
+                            longitude = data.getString("longitude");
+
+                            // Fetch weather data with new coordinates
+                            fetchAllWeatherData();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing geocoding response: " + e.getMessage());
+                    }
+                },
+                error -> Log.e(TAG, "Error getting coordinates: " + error.getMessage()));
+
+        requestQueue.add(request);
     }
 
     private void setupClickListeners() {
