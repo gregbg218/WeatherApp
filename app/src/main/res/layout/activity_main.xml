@@ -70,6 +70,7 @@
                 android:id="@+id/tabDots"
                 android:layout_width="wrap_content"
                 android:layout_height="20dp"
+                android:background="#121212"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -347,6 +348,21 @@
                 android:layout_height="match_parent"
                 android:background="#272727">
 
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_favorite"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="16dp"
+                    android:layout_marginEnd="17dp"
+                    android:layout_marginBottom="29dp"
+                    app:backgroundTint="#FFFFFF"
+                    app:fabCustomSize="56dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Full"
+                    app:tint="#000000" />
+
                 <TableLayout
                     android:id="@+id/weatherTable"
                     android:layout_width="392dp"
@@ -354,13 +370,18 @@
                     android:background="#272727"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.571"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintVertical_bias="1.0">
 
                 </TableLayout>
             </androidx.constraintlayout.widget.ConstraintLayout>
         </androidx.cardview.widget.CardView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

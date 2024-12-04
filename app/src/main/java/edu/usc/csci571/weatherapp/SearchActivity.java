@@ -446,7 +446,6 @@ public class SearchActivity extends AppCompatActivity {
 
     private void checkFavoriteStatus() {
         String url = BASE_URL + "/api/favorites/status?city=" + selectedCity + "&state=" + selectedState;
-
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
@@ -457,10 +456,8 @@ public class SearchActivity extends AppCompatActivity {
                     }
                 },
                 error -> showError("Error checking favorite status"));
-
         requestQueue.add(request);
     }
-
     private void toggleFavorite() {
         if (fabFavorite.getTag() != null && (boolean) fabFavorite.getTag()) {
             removeFavorite();
@@ -504,7 +501,7 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void updateFavoriteButton(boolean isFavorite) {
-        fabFavorite.setImageResource(isFavorite ? R.drawable.map_marker_minus : R.drawable.map_marker_plus);
+        fabFavorite.setImageResource(isFavorite ? R.drawable.rem_fav : R.drawable.add_fav);
         fabFavorite.setTag(isFavorite);
     }
 
