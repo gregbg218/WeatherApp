@@ -5,6 +5,8 @@ import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import android.content.Intent;
 import android.graphics.Color;
@@ -31,6 +33,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 
 import org.json.JSONArray;
@@ -58,6 +61,9 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        fab.setVisibility(View.INVISIBLE);
+
         setupClickListeners();
         Log.d(TAG, "Activity created");
         requestQueue = Volley.newRequestQueue(this);
@@ -68,6 +74,13 @@ public class MainActivity extends AppCompatActivity {
 
 
     private JSONArray favoritesData; // Add this class variable
+
+    private void updateFabVisibility() {
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        int currentPosition = tabDots.getSelectedTabPosition();
+        fab.setVisibility(currentPosition == 0 ? View.INVISIBLE : View.VISIBLE);
+    }
+
 
     private void setupFavoritesPager() {
         viewPager = findViewById(R.id.viewPager2);
@@ -95,9 +108,11 @@ public class MainActivity extends AppCompatActivity {
                             tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
                                 @Override
                                 public void onTabSelected(TabLayout.Tab tab) {
+                                    FloatingActionButton fab = findViewById(R.id.fab_favorite);
                                     int position = tab.getPosition();
+                                    updateFabVisibility();  // Update FAB visibility
+
                                     if (position == 0) {
-                                        // First dot - current location
                                         isDataLoaded = false;
                                         getCurrentLocationData();
                                     } else {
@@ -111,7 +126,8 @@ public class MainActivity extends AppCompatActivity {
                                             // Fixed geocoding URL
                                             String encodedCity = URLEncoder.encode(city, "UTF-8");
                                             String encodedState = URLEncoder.encode(state.replace(", USA", ""), "UTF-8");
-                                            String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" + encodedCity +","+ encodedState;
+                                            String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" +
+                                                    encodedCity + "," + encodedState;
                                             JsonObjectRequest geoRequest = new JsonObjectRequest(
                                                     Request.Method.GET, geocodingUrl, null,
                                                     geoResponse -> {
@@ -123,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
                                                                 fetchAllWeatherData();
                                                             }
                                                         } catch (JSONException e) {
-                                                            Log.e(TAG, "Error parsing geocoding: " + e.getMessage()+" " +geocodingUrl);
+                                                            Log.e(TAG, "Error parsing geocoding: " + e.getMessage() + " " + geocodingUrl);
                                                         }
                                                     },
                                                     error -> Log.e(TAG, "Geocoding error: " + error.getMessage())
@@ -246,6 +262,24 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("temperature", temperature);
             startActivity(intent);
         });
+
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        fab.setOnClickListener(v -> {
+            int selectedPosition = tabDots.getSelectedTabPosition();
+            if (selectedPosition > 0) {
+                try {
+                    JSONObject favorite = favoritesData.getJSONObject(selectedPosition - 1);
+                    String city = favorite.getString("city");
+                    String state = favorite.getString("state");
+                    removeFavorite(city, state);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error getting favorite data: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private boolean isNetworkAvailable() {
@@ -324,6 +358,63 @@ public class MainActivity extends AppCompatActivity {
         this.locationInWords = "Los Angeles, California";
         if (!isDataLoaded) {
             fetchAllWeatherData();
+        }
+    }
+
+    private void removeFavorite(String city, String state) {
+        try {
+            // Create query parameters
+            String encodedCity = URLEncoder.encode(city, "UTF-8");
+            String encodedState = URLEncoder.encode(state, "UTF-8");
+            String deleteUrl = String.format("http://10.0.2.2:3001/api/favorites/remove?city=%s&state=%s",
+                    encodedCity, encodedState);
+
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.DELETE,
+                    deleteUrl,
+                    null,  // No body needed since we're using query parameters
+                    response -> {
+                        try {
+                            if (response.getBoolean("success")) {
+                                Toast.makeText(MainActivity.this,
+                                        city + ", " + state + " removed from favorites",
+                                        Toast.LENGTH_SHORT).show();
+                                setupFavoritesPager();
+                                tabDots.selectTab(tabDots.getTabAt(0));
+                            } else {
+                                Toast.makeText(MainActivity.this,
+                                        "Failed to remove from favorites",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing remove response: " + e.getMessage());
+                            Toast.makeText(MainActivity.this,
+                                    "Error removing from favorites",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    },
+                    error -> {
+                        Log.e(TAG, "Error removing favorite: " +
+                                (error.getMessage() != null ? error.getMessage() : "Unknown error"));
+                        Toast.makeText(MainActivity.this,
+                                "Error removing from favorites",
+                                Toast.LENGTH_SHORT).show();
+                    }
+            );
+
+            request.setRetryPolicy(new DefaultRetryPolicy(
+                    15000,
+                    3,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+            ));
+
+            requestQueue.add(request);
+
+        } catch (UnsupportedEncodingException e) {
+            Log.e(TAG, "Error encoding URL: " + e.getMessage());
+            Toast.makeText(MainActivity.this,
+                    "Error removing from favorites",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -420,6 +511,10 @@ public class MainActivity extends AppCompatActivity {
             pressureView.setText(String.format("%.2f inHg", pressure));
         }
     }
+
+
+
+
 
     private void populateWeatherTable(JSONArray dailyData) throws JSONException {
         TableLayout tableLayout = findViewById(R.id.weatherTable);

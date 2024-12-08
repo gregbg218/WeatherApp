@@ -356,6 +356,7 @@
                     android:layout_margin="16dp"
                     android:layout_marginEnd="17dp"
                     android:layout_marginBottom="29dp"
+                    android:src="@drawable/rem_fav"
                     app:backgroundTint="#FFFFFF"
                     app:fabCustomSize="56dp"
                     app:layout_constraintBottom_toBottomOf="parent"
