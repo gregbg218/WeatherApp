@@ -17,21 +17,29 @@
         android:theme="@style/Theme.WeatherApp"
         tools:targetApi="31">
 
+        <!-- Add SplashActivity as launcher -->
+        <activity
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.WeatherApp.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Move MainActivity intent-filter to SplashActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/Theme.WeatherApp">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <!-- Add search meta-data to MainActivity -->
             <meta-data
                 android:name="android.app.default_searchable"
                 android:value=".SearchActivity" />
         </activity>
 
+        <!-- Keep other activities unchanged -->
         <activity
             android:name=".SearchActivity"
             android:exported="false"
@@ -47,7 +55,6 @@
             android:exported="false"
             android:theme="@style/Theme.WeatherApp"
             android:parentActivityName=".MainActivity">
-            <!-- Parent activity meta-data to support API level 4+ -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".MainActivity" />

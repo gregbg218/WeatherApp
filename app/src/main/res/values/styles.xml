@@ -9,4 +9,9 @@
     <style name="ProgressBarStyle">
         <item name="colorAccent">#BEBEBE</item>
     </style>
+
+    <style name="Theme.WeatherApp.Launcher" parent="Theme.WeatherApp">
+        <item name="android:windowBackground">@drawable/launch_screen</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
 </resources>

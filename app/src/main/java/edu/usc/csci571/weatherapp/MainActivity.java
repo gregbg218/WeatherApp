@@ -57,7 +57,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(R.style.Theme_WeatherApp);  // Must be first line to switch from splash theme
         super.onCreate(savedInstanceState);
+
+        // Your existing initialization code
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
