@@ -63,21 +63,23 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
+        // Initialize views
+        searchAutoComplete = findViewById(R.id.search_autocomplete);
+        progressBar = findViewById(R.id.progressBar);
+        fabFavorite = findViewById(R.id.fab_favorite);
+        ImageButton backButton = findViewById(R.id.backButton);
+        ImageButton clearButton = findViewById(R.id.clearButton);
+
         // Retrieve passed coordinates and location
         Intent intent = getIntent();
         latitude = intent.getStringExtra("latitude");
         longitude = intent.getStringExtra("longitude");
         locationInWords = intent.getStringExtra("locationInWords");
 
-        // Initialize views
-        searchAutoComplete = findViewById(R.id.search_autocomplete);
-        progressBar = findViewById(R.id.progressBar);
-        fabFavorite = findViewById(R.id.fab_favorite);
-
-        ImageButton backButton = findViewById(R.id.backButton);
+        // Setup back button
         backButton.setOnClickListener(v -> finish());
 
-        // Initialize AutoCompleteTextView with custom adapter
+        // Initialize suggestions list and adapter
         suggestions = new ArrayList<>();
         adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, suggestions) {
             @Override
@@ -89,27 +91,55 @@ public class SearchActivity extends AppCompatActivity {
                 return view;
             }
         };
+
+        // Setup AutoCompleteTextView
         searchAutoComplete.setAdapter(adapter);
         searchAutoComplete.setThreshold(3);
         searchAutoComplete.setTextColor(Color.WHITE);
         searchAutoComplete.setHintTextColor(Color.GRAY);
 
+        // Setup text change listener with clear button functionality
+        searchAutoComplete.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                clearButton.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+                String text = s.toString().trim();
+                if (text.length() >= 3) {
+                    getAutocompleteSuggestions(text);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        // Setup clear button click listener
+        clearButton.setOnClickListener(v -> {
+            searchAutoComplete.setText("");
+            clearButton.setVisibility(View.GONE);
+        });
+
+        // Setup item click listener
+        searchAutoComplete.setOnItemClickListener((parent, view, position, id) -> {
+            String selection = (String) parent.getItemAtPosition(position);
+            searchAutoComplete.setText(selection);
+            searchAutoComplete.dismissDropDown();
+
+            // Hide keyboard
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(searchAutoComplete.getWindowToken(), 0);
+
+            showLoading();
+            performSearch(selection);
+        });
+
         // Initialize Volley RequestQueue
         requestQueue = Volley.newRequestQueue(this);
 
-        // Setup AutoComplete
-        setupAutoComplete();
-
-        // Setup click listeners for card and favorite button
-        setupCardClickListener();
-        setupFavoriteButton();
-
-        // Fetch initial weather data
-        if (latitude != null && longitude != null) {
-            fetchWeatherData();
-            fillHomePageCard2();
-        }
-
+        // Setup card click listener
         findViewById(R.id.cardView1).setOnClickListener(v -> {
             Intent detailsIntent = new Intent(SearchActivity.this, WeatherDetailsActivity.class);
             detailsIntent.putExtra("latitude", latitude);
@@ -121,6 +151,19 @@ public class SearchActivity extends AppCompatActivity {
             detailsIntent.putExtra("temperature", temperature);
             startActivity(detailsIntent);
         });
+
+        // Setup favorite button
+        fabFavorite.setOnClickListener(v -> {
+            if (selectedCity != null && selectedState != null) {
+                toggleFavorite();
+            }
+        });
+
+        // Load initial data if coordinates are available
+        if (latitude != null && longitude != null) {
+            fetchWeatherData();
+            fillHomePageCard2();
+        }
     }
 
 
@@ -167,6 +210,7 @@ public class SearchActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {}
         });
+
 
         searchAutoComplete.setOnItemClickListener((parent, view, position, id) -> {
             String selection = (String) parent.getItemAtPosition(position);

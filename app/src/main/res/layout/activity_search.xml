@@ -2,7 +2,6 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212">
@@ -15,7 +14,9 @@
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize">
+            android:layout_height="?attr/actionBarSize"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
 
             <ImageButton
                 android:id="@+id/backButton"
@@ -29,65 +30,52 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="#FFFFFF" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Search Results"
+            <AutoCompleteTextView
+                android:id="@+id/search_autocomplete"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@null"
+                android:hint="Enter city name"
                 android:textColor="#FFFFFF"
-                android:textSize="20sp"
+                android:textColorHint="#80FFFFFF"
+                android:textSize="16sp"
+                android:dropDownAnchor="@id/search_autocomplete"
+                android:dropDownVerticalOffset="0dp"
+                android:dropDownWidth="match_parent"
+                android:popupBackground="#121212"
+                android:singleLine="true"
+                android:imeOptions="actionSearch"
                 app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/clearButton"
                 app:layout_constraintStart_toEndOf="@id/backButton"
                 app:layout_constraintTop_toTopOf="parent" />
+
+            <ImageButton
+                android:id="@+id/clearButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Clear"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:visibility="visible"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="#FFFFFF" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <AutoCompleteTextView
-        android:id="@+id/search_autocomplete"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:background="#2D2D2D"
-        android:hint="Enter city name"
-        android:padding="12dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#80FFFFFF"
-        android:textSize="16sp"
-        android:drawableStart="@drawable/ic_search"
-        android:drawablePadding="8dp"
-        android:dropDownAnchor="@id/search_autocomplete"
-        android:dropDownVerticalOffset="0dp"
-        android:dropDownWidth="match_parent"
-        android:popupBackground="#121212"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="390dp"
-        android:layout_height="59dp"
-        android:layout_marginTop="126dp">
-
-        <TextView
-            android:id="@+id/searchResultLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginStart="4dp"
-            android:layout_marginBottom="16dp"
-            android:text="Search Result"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="120dp"
+        android:layout_marginTop="?attr/actionBarSize"
         android:background="#2D2D2D"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        <!-- Rest of your layout remains the same -->
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -297,84 +285,84 @@
 
 
                     <TextView
-                    android:id="@+id/Wind_Speed_Value"
-                    android:layout_width="58dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginBottom="4dp"
-                    android:textAlignment="center"
-                    android:textColor="#BEBEBE"
-                    app:layout_constraintBottom_toTopOf="@+id/textView2"
-                    app:layout_constraintStart_toStartOf="@+id/textView2" />
+                        android:id="@+id/Wind_Speed_Value"
+                        android:layout_width="58dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:textAlignment="center"
+                        android:textColor="#BEBEBE"
+                        app:layout_constraintBottom_toTopOf="@+id/textView2"
+                        app:layout_constraintStart_toStartOf="@+id/textView2" />
 
-                <TextView
-                    android:id="@+id/Visibility_Value"
-                    android:layout_width="55dp"
-                    android:layout_height="20dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_marginTop="9dp"
-                    android:layout_marginBottom="18dp"
-                    android:textAlignment="center"
-                    android:textColor="#BEBEBE"
-                    app:layout_constraintBottom_toBottomOf="@+id/textView"
-                    app:layout_constraintStart_toStartOf="@+id/imageView4"
-                    app:layout_constraintTop_toBottomOf="@+id/imageView4"
-                    app:layout_constraintVertical_bias="1.0" />
+                    <TextView
+                        android:id="@+id/Visibility_Value"
+                        android:layout_width="55dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginTop="9dp"
+                        android:layout_marginBottom="18dp"
+                        android:textAlignment="center"
+                        android:textColor="#BEBEBE"
+                        app:layout_constraintBottom_toBottomOf="@+id/textView"
+                        app:layout_constraintStart_toStartOf="@+id/imageView4"
+                        app:layout_constraintTop_toBottomOf="@+id/imageView4"
+                        app:layout_constraintVertical_bias="1.0" />
 
-                <TextView
-                    android:id="@+id/Pressure_Value"
-                    android:layout_width="62dp"
-                    android:layout_height="18dp"
-                    android:layout_marginEnd="4dp"
-                    android:textAlignment="center"
-                    android:textColor="#BEBEBE"
-                    app:layout_constraintBottom_toBottomOf="@+id/Visibility_Value"
-                    app:layout_constraintEnd_toEndOf="@+id/imageView5"
-                    app:layout_constraintTop_toTopOf="@+id/Visibility_Value"
-                    app:layout_constraintVertical_bias="0.0" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </androidx.cardview.widget.CardView>
+                    <TextView
+                        android:id="@+id/Pressure_Value"
+                        android:layout_width="62dp"
+                        android:layout_height="18dp"
+                        android:layout_marginEnd="4dp"
+                        android:textAlignment="center"
+                        android:textColor="#BEBEBE"
+                        app:layout_constraintBottom_toBottomOf="@+id/Visibility_Value"
+                        app:layout_constraintEnd_toEndOf="@+id/imageView5"
+                        app:layout_constraintTop_toTopOf="@+id/Visibility_Value"
+                        app:layout_constraintVertical_bias="0.0" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardView"
-            android:layout_width="0dp"
-            android:layout_height="277dp"
-            android:layout_marginLeft="4dp"
-            android:layout_marginTop="28dp"
-            android:layout_marginRight="4dp"
-            app:cardBackgroundColor="#272727"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/cardView2">
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardView"
+                android:layout_width="0dp"
+                android:layout_height="277dp"
+                android:layout_marginLeft="4dp"
+                android:layout_marginTop="28dp"
+                android:layout_marginRight="4dp"
+                app:cardBackgroundColor="#272727"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/cardView2">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#272727">
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="#272727">
 
-                <TableLayout
-                    android:id="@+id/weatherTable"
-                    android:layout_width="392dp"
-                    android:layout_height="277dp"
-                    android:background="#272727"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"></TableLayout>
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </androidx.cardview.widget.CardView>
+                    <TableLayout
+                        android:id="@+id/weatherTable"
+                        android:layout_width="392dp"
+                        android:layout_height="277dp"
+                        android:background="#272727"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"></TableLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
 
-        <ProgressBar
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
     <!-- Floating Action Button -->
