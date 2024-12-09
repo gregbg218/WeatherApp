@@ -35,6 +35,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -43,6 +45,9 @@ import java.util.List;
 
 public class SearchActivity extends AppCompatActivity {
     private static final String TAG = "SearchActivity";
+
+    private String selectedCity = null;
+    private String selectedState = null;
     private static final String BASE_URL = "http://10.0.2.2:3001";
 
     private AutoCompleteTextView searchAutoComplete;
@@ -52,8 +57,7 @@ public class SearchActivity extends AppCompatActivity {
     private View progressBar;
     private FloatingActionButton fabFavorite;
 
-    private String selectedCity;
-    private String selectedState;
+
     private String latitude;
     private String longitude;
     private String locationInWords;
@@ -63,6 +67,9 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
+        // Initialize RequestQueue first
+        requestQueue = Volley.newRequestQueue(this);
+
         // Initialize views
         searchAutoComplete = findViewById(R.id.search_autocomplete);
         progressBar = findViewById(R.id.progressBar);
@@ -70,11 +77,21 @@ public class SearchActivity extends AppCompatActivity {
         ImageButton backButton = findViewById(R.id.backButton);
         ImageButton clearButton = findViewById(R.id.clearButton);
 
-        // Retrieve passed coordinates and location
+        // Get data from MainActivity
         Intent intent = getIntent();
         latitude = intent.getStringExtra("latitude");
         longitude = intent.getStringExtra("longitude");
         locationInWords = intent.getStringExtra("locationInWords");
+
+        // Parse city and state and check favorite status
+        if (locationInWords != null) {
+            String[] parts = locationInWords.split(",");
+            if (parts.length >= 2) {
+                selectedCity = parts[0].trim();
+                selectedState = parts[1].trim().replace(" USA", "");
+                checkFavoriteStatus();
+            }
+        }
 
         // Setup back button
         backButton.setOnClickListener(v -> finish());
@@ -122,7 +139,7 @@ public class SearchActivity extends AppCompatActivity {
             clearButton.setVisibility(View.GONE);
         });
 
-        // Setup item click listener
+        // Setup search item click listener
         searchAutoComplete.setOnItemClickListener((parent, view, position, id) -> {
             String selection = (String) parent.getItemAtPosition(position);
             searchAutoComplete.setText(selection);
@@ -139,7 +156,7 @@ public class SearchActivity extends AppCompatActivity {
         // Initialize Volley RequestQueue
         requestQueue = Volley.newRequestQueue(this);
 
-        // Setup card click listener
+        // Setup details card click listener
         findViewById(R.id.cardView1).setOnClickListener(v -> {
             Intent detailsIntent = new Intent(SearchActivity.this, WeatherDetailsActivity.class);
             detailsIntent.putExtra("latitude", latitude);
@@ -152,7 +169,8 @@ public class SearchActivity extends AppCompatActivity {
             startActivity(detailsIntent);
         });
 
-        // Setup favorite button
+        // Setup FAB (Favorite button)
+        fabFavorite.setVisibility(View.VISIBLE);
         fabFavorite.setOnClickListener(v -> {
             if (selectedCity != null && selectedState != null) {
                 toggleFavorite();
@@ -279,7 +297,6 @@ public class SearchActivity extends AppCompatActivity {
 
     private void performSearch(String query) {
         showLoading();
-        // First get the place details from autocomplete
         String autocompleteUrl = BASE_URL + "/api/autocomplete/suggestions?input=" + Uri.encode(query);
         JsonObjectRequest autocompleteRequest = new JsonObjectRequest(Request.Method.GET, autocompleteUrl, null,
                 response -> {
@@ -288,11 +305,22 @@ public class SearchActivity extends AppCompatActivity {
                         if (predictions.length() > 0) {
                             JSONObject prediction = predictions.getJSONObject(0);
                             JSONObject structuredFormatting = prediction.getJSONObject("structured_formatting");
-                            selectedCity = structuredFormatting.getString("main_text");
-                            selectedState = structuredFormatting.getString("secondary_text");
-                            locationInWords = prediction.getString("description");
 
-                            // Now get coordinates using geocoding API
+                            // Debug log
+                            Log.d(TAG, "Raw response: " + structuredFormatting.toString());
+
+                            selectedCity = structuredFormatting.getString("main_text");
+                            String secondaryText = structuredFormatting.getString("secondary_text");
+                            // Split by comma and take first part as state
+                            String[] parts = secondaryText.split(",");
+                            selectedState = parts[0].trim();
+
+                            // Debug logs
+                            Log.d(TAG, "Set selectedCity to: " + selectedCity);
+                            Log.d(TAG, "Set selectedState to: " + selectedState);
+
+                            locationInWords = selectedCity + ", " + selectedState;
+
                             String geocodingUrl = BASE_URL + "/api/geocoding/coordinates?address=" + Uri.encode(locationInWords);
                             JsonObjectRequest geocodingRequest = new JsonObjectRequest(Request.Method.GET, geocodingUrl, null,
                                     geoResponse -> {
@@ -302,28 +330,38 @@ public class SearchActivity extends AppCompatActivity {
                                                 latitude = coordinates.getString("latitude");
                                                 longitude = coordinates.getString("longitude");
 
-                                                // Now fetch weather data with new coordinates
+                                                // Update UI and check favorite status
                                                 fetchWeatherData();
                                                 fillHomePageCard2();
+                                                fabFavorite.setVisibility(View.VISIBLE);
                                                 checkFavoriteStatus();
+
+                                                // Debug log
+                                                Log.d(TAG, "Search complete. City: " + selectedCity + ", State: " + selectedState);
                                             } else {
                                                 showError("Could not get location coordinates");
                                             }
                                         } catch (JSONException e) {
                                             showError("Error parsing geocoding data");
                                         }
+                                        hideLoading();
                                     },
-                                    error -> showError("Error getting coordinates")
+                                    error -> {
+                                        showError("Error getting coordinates");
+                                        hideLoading();
+                                    }
                             );
                             requestQueue.add(geocodingRequest);
-                        } else {
-                            showError("No results found");
                         }
                     } catch (JSONException e) {
-                        showError("Error parsing location data");
+                        Log.e(TAG, "Error parsing location data: " + e.getMessage());
+                        hideLoading();
                     }
                 },
-                error -> showError("Error fetching location data")
+                error -> {
+                    Log.e(TAG, "Error fetching location data: " + error.getMessage());
+                    hideLoading();
+                }
         );
         requestQueue.add(autocompleteRequest);
     }
@@ -489,62 +527,124 @@ public class SearchActivity extends AppCompatActivity {
     }
 
     private void checkFavoriteStatus() {
-        String url = BASE_URL + "/api/favorites/status?city=" + selectedCity + "&state=" + selectedState;
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
-                response -> {
-                    try {
-                        boolean isFavorite = response.getBoolean("isFavorite");
-                        updateFavoriteButton(isFavorite);
-                    } catch (JSONException e) {
-                        showError("Error checking favorite status");
-                    }
-                },
-                error -> showError("Error checking favorite status"));
-        requestQueue.add(request);
+        try {
+            String encodedCity = URLEncoder.encode(selectedCity, "UTF-8");
+            String encodedState = URLEncoder.encode(selectedState, "UTF-8");
+            String url = String.format("http://10.0.2.2:3001/api/favorites/status?city=%s&state=%s",
+                    encodedCity, encodedState);
+
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                    response -> {
+                        try {
+                            boolean isFavorite = response.getBoolean("isFavorite");
+                            updateFavoriteButton(isFavorite);
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error checking favorite status: " + e.getMessage());
+                        }
+                    },
+                    error -> Log.e(TAG, "Error checking favorite status: " + error.getMessage())
+            );
+
+            requestQueue.add(request);
+        } catch (UnsupportedEncodingException e) {
+            Log.e(TAG, "Error encoding URL parameters: " + e.getMessage());
+        }
     }
+
     private void toggleFavorite() {
-        if (fabFavorite.getTag() != null && (boolean) fabFavorite.getTag()) {
-            removeFavorite();
-        } else {
-            addFavorite();
+        try {
+            String encodedCity = URLEncoder.encode(selectedCity, "UTF-8");
+            String encodedState = URLEncoder.encode(selectedState, "UTF-8");
+            String deleteUrl = String.format("http://10.0.2.2:3001/api/favorites/remove?city=%s&state=%s",
+                    encodedCity, encodedState);
+
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.DELETE,
+                    deleteUrl,
+                    null,
+                    response -> {
+                        try {
+                            if (response.getBoolean("success")) {
+                                Toast.makeText(SearchActivity.this,
+                                        selectedCity + ", " + selectedState + " removed from favorites",
+                                        Toast.LENGTH_SHORT).show();
+                                updateFavoriteButton(false);
+                            } else {
+                                addFavorite();
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing remove response: " + e.getMessage());
+                            Toast.makeText(SearchActivity.this,
+                                    "Error removing from favorites",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    },
+                    error -> {
+                        Log.e(TAG, "Error removing favorite: " + error.getMessage());
+                        addFavorite();
+                    }
+            );
+
+            request.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+            requestQueue.add(request);
+
+        } catch (UnsupportedEncodingException e) {
+            Log.e(TAG, "Error encoding URL: " + e.getMessage());
+            Toast.makeText(SearchActivity.this,
+                    "Error updating favorites",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
     private void addFavorite() {
-        String url = BASE_URL + "/api/favorites/add";
         JSONObject body = new JSONObject();
         try {
             body.put("city", selectedCity);
             body.put("state", selectedState);
         } catch (JSONException e) {
-            showError("Error adding to favorites");
+            Log.e(TAG, "Error creating request body: " + e.getMessage());
             return;
         }
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
+        String addUrl = "http://10.0.2.2:3001/api/favorites/add";
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.POST,
+                addUrl,
+                body,
                 response -> {
-                    updateFavoriteButton(true);
-                    Toast.makeText(this, selectedCity + " was added to favorites", Toast.LENGTH_SHORT).show();
+                    try {
+                        if (response.getBoolean("success")) {
+                            Toast.makeText(SearchActivity.this,
+                                    selectedCity + ", " + selectedState + " added to favorites",
+                                    Toast.LENGTH_SHORT).show();
+                            updateFavoriteButton(true);
+                        } else {
+                            Toast.makeText(SearchActivity.this,
+                                    "Failed to add to favorites",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Error parsing add response: " + e.getMessage());
+                        Toast.makeText(SearchActivity.this,
+                                "Error adding to favorites",
+                                Toast.LENGTH_SHORT).show();
+                    }
                 },
-                error -> showError("Error adding to favorites"));
+                error -> {
+                    Log.e(TAG, "Error adding favorite: " + error.getMessage());
+                    Toast.makeText(SearchActivity.this,
+                            "Error adding to favorites",
+                            Toast.LENGTH_SHORT).show();
+                }
+        );
 
-        requestQueue.add(request);
-    }
-
-    private void removeFavorite() {
-        String url = BASE_URL + "/api/favorites/remove?city=" + selectedCity + "&state=" + selectedState;
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
-                response -> {
-                    updateFavoriteButton(false);
-                    Toast.makeText(this, selectedCity + " was removed from favorites", Toast.LENGTH_SHORT).show();
-                },
-                error -> showError("Error removing from favorites"));
-
+        request.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         requestQueue.add(request);
     }
 
     private void updateFavoriteButton(boolean isFavorite) {
+        fabFavorite.setVisibility(View.VISIBLE);
         fabFavorite.setImageResource(isFavorite ? R.drawable.rem_fav : R.drawable.add_fav);
         fabFavorite.setTag(isFavorite);
     }
