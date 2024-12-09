@@ -1,13 +1,5 @@
 package edu.usc.csci571.weatherapp;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
@@ -40,27 +32,38 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import edu.usc.csci571.weatherapp.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
+    private static int weatherApiCalls = 0;
+    private static long lastResetTime = System.currentTimeMillis();
+    private static final int API_CALL_LIMIT = 1000;
+    private static final long RESET_INTERVAL = 24 * 60 * 60 * 1000;
+
     private ActivityMainBinding binding;
     private RequestQueue requestQueue;
-    private static final String TAG = "MainActivity";
     private String latitude;
     private String longitude;
     private String locationInWords;
     private boolean isDataLoaded = false;
-
-    // Add after other private variables
     private ViewPager2 viewPager;
     private TabLayout tabDots;
+    private JSONArray favoritesData;
+    private TabLayout.OnTabSelectedListener currentTabListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setTheme(R.style.Theme_WeatherApp);  // Must be first line to switch from splash theme
+        setTheme(R.style.Theme_WeatherApp);
         super.onCreate(savedInstanceState);
 
-        // Your existing initialization code
+        Log.d(TAG, "MainActivity onCreate started");
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -71,12 +74,50 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Activity created");
         requestQueue = Volley.newRequestQueue(this);
         getCurrentLocationData();
-
         setupFavoritesPager();
     }
 
+    private void logWeatherApiCall(String endpoint, String source, String parameters) {
+        weatherApiCalls++;
+        long currentTime = System.currentTimeMillis();
 
-    private JSONArray favoritesData; // Add this class variable
+        // Get stack trace for call origin
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        String callingMethod = stackTrace[3].getMethodName(); // Index 3 gets the calling method
+
+        // Format timestamp for logging
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        String timestamp = sdf.format(new Date(currentTime));
+
+        // Log detailed API call information
+        Log.d(TAG, String.format("Weather API Call [%s] {\n" +
+                        "  Endpoint: %s\n" +
+                        "  Source Method: %s\n" +
+                        "  Called From: %s\n" +
+                        "  Parameters: %s\n" +
+                        "  Total Calls Today: %d/%d\n" +
+                        "}",
+                timestamp,
+                endpoint,
+                source,
+                callingMethod,
+                parameters,
+                weatherApiCalls,
+                API_CALL_LIMIT));
+
+        // Check for reset
+        if (currentTime - lastResetTime >= RESET_INTERVAL) {
+            weatherApiCalls = 1;
+            lastResetTime = currentTime;
+            Log.i(TAG, "Weather API call counter reset. New day started.");
+        }
+
+        if (weatherApiCalls > API_CALL_LIMIT) {
+            Log.w(TAG, "WARNING: Exceeded recommended daily API call limit!");
+        }
+    }
+
+
 
     private void updateFabVisibility() {
         FloatingActionButton fab = findViewById(R.id.fab_favorite);
@@ -85,15 +126,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
     private void setupFavoritesPager() {
         viewPager = findViewById(R.id.viewPager2);
         tabDots = findViewById(R.id.tabDots);
 
-        // Clear existing tabs first
-        tabDots.removeAllTabs();
+        // Track if this is initial setup
+        boolean isInitialSetup = tabDots.getTabCount() == 0;
 
-        // Don't add any tabs yet - wait for data
-        // Remove: tabDots.addTab(tabDots.newTab());
+        // Clear existing tabs and listeners
+        tabDots.removeAllTabs();
+        if (currentTabListener != null) {
+            tabDots.removeOnTabSelectedListener(currentTabListener);
+        }
 
         String favoritesUrl = "http://10.0.2.2:3001/api/favorites/list";
 
@@ -102,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             favoritesData = response.getJSONArray("data");
+                            Log.d(TAG, "Fetched favorites data: " + favoritesData.length() + " favorites");
 
                             // Clear tabs again to be safe
                             tabDots.removeAllTabs();
@@ -113,14 +159,26 @@ public class MainActivity extends AppCompatActivity {
                             for (int i = 0; i < favoritesData.length(); i++) {
                                 tabDots.addTab(tabDots.newTab());
                             }
-                            tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+
+                            currentTabListener = new TabLayout.OnTabSelectedListener() {
                                 @Override
                                 public void onTabSelected(TabLayout.Tab tab) {
                                     FloatingActionButton fab = findViewById(R.id.fab_favorite);
                                     int position = tab.getPosition();
-                                    updateFabVisibility();  // Update FAB visibility
+                                    updateFabVisibility();
+
+                                    // Skip data fetch if this is initial setup and we're on first tab
+                                    if (isInitialSetup && position == 0) {
+                                        Log.d(TAG, "Skipping initial data fetch as it's already loading");
+                                        return;
+                                    }
+
+                                    // Cancel any pending requests
+                                    requestQueue.cancelAll(TAG + "_geo");
+                                    requestQueue.cancelAll(TAG + "_weather");
 
                                     if (position == 0) {
+                                        Log.d(TAG, "Loading current location data");
                                         isDataLoaded = false;
                                         getCurrentLocationData();
                                     } else {
@@ -131,11 +189,13 @@ public class MainActivity extends AppCompatActivity {
                                             locationInWords = city + ", " + state;
                                             isDataLoaded = false;
 
-                                            // Fixed geocoding URL
+                                            Log.d(TAG, "Loading favorite location: " + locationInWords);
+
                                             String encodedCity = URLEncoder.encode(city, "UTF-8");
                                             String encodedState = URLEncoder.encode(state.replace(", USA", ""), "UTF-8");
                                             String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" +
                                                     encodedCity + "," + encodedState;
+
                                             JsonObjectRequest geoRequest = new JsonObjectRequest(
                                                     Request.Method.GET, geocodingUrl, null,
                                                     geoResponse -> {
@@ -144,7 +204,13 @@ public class MainActivity extends AppCompatActivity {
                                                                 JSONObject data = geoResponse.getJSONObject("coordinates");
                                                                 latitude = data.getString("latitude");
                                                                 longitude = data.getString("longitude");
-                                                                fetchAllWeatherData();
+                                                                Log.d(TAG, "Got coordinates: " + latitude + "," + longitude);
+
+                                                                // Only fetch weather if this is still the selected tab
+                                                                if (tabDots.getSelectedTabPosition() == position) {
+                                                                    isDataLoaded = false;
+                                                                    fetchAllWeatherData();
+                                                                }
                                                             }
                                                         } catch (JSONException e) {
                                                             Log.e(TAG, "Error parsing geocoding: " + e.getMessage() + " " + geocodingUrl);
@@ -153,6 +219,7 @@ public class MainActivity extends AppCompatActivity {
                                                     error -> Log.e(TAG, "Geocoding error: " + error.getMessage())
                                             );
 
+                                            geoRequest.setTag(TAG + "_geo");
                                             geoRequest.setRetryPolicy(new DefaultRetryPolicy(
                                                     15000,
                                                     3,
@@ -167,11 +234,29 @@ public class MainActivity extends AppCompatActivity {
                                 }
 
                                 @Override
-                                public void onTabUnselected(TabLayout.Tab tab) {}
+                                public void onTabUnselected(TabLayout.Tab tab) {
+                                    // Cancel any pending requests when tab is unselected
+                                    requestQueue.cancelAll(TAG + "_geo");
+                                    requestQueue.cancelAll(TAG + "_weather");
+                                }
 
                                 @Override
-                                public void onTabReselected(TabLayout.Tab tab) {}
-                            });
+                                public void onTabReselected(TabLayout.Tab tab) {
+                                    // Handle tab reselection if needed
+                                }
+                            };
+
+                            // Add the listener
+                            tabDots.addOnTabSelectedListener(currentTabListener);
+
+                            // If this isn't initial setup, trigger the current tab's data load
+                            if (!isInitialSetup) {
+                                int currentPosition = tabDots.getSelectedTabPosition();
+                                TabLayout.Tab currentTab = tabDots.getTabAt(currentPosition);
+                                if (currentTab != null) {
+                                    currentTab.select();
+                                }
+                            }
                         }
                     } catch (JSONException e) {
                         Log.e(TAG, "Error parsing favorites: " + e.getMessage());
@@ -180,8 +265,54 @@ public class MainActivity extends AppCompatActivity {
                 error -> Log.e(TAG, "Error fetching favorites: " + error.getMessage()));
 
         request.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        request.setTag(TAG + "_favorites");
         requestQueue.add(request);
     }
+
+    private void setupClickListeners() {
+        ImageView searchIcon = findViewById(R.id.imageView10);
+        searchIcon.setOnClickListener(v -> {
+            Log.d(TAG, "Search icon clicked, launching SearchActivity");
+            Intent intent = new Intent(MainActivity.this, SearchActivity.class);
+            intent.putExtra("latitude", latitude);
+            intent.putExtra("longitude", longitude);
+            intent.putExtra("locationInWords", locationInWords);
+            startActivity(intent);
+        });
+
+        findViewById(R.id.cardView1).setOnClickListener(v -> {
+            Log.d(TAG, "Weather card clicked, launching WeatherDetailsActivity");
+            Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
+            intent.putExtra("latitude", latitude);
+            intent.putExtra("longitude", longitude);
+            intent.putExtra("city_name", locationInWords);
+            TextView tempView = findViewById(R.id.todayTemp);
+            String tempText = tempView.getText().toString();
+            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+            intent.putExtra("temperature", temperature);
+            startActivity(intent);
+        });
+
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        fab.setOnClickListener(v -> {
+            int selectedPosition = tabDots.getSelectedTabPosition();
+            if (selectedPosition > 0) {
+                try {
+                    JSONObject favorite = favoritesData.getJSONObject(selectedPosition - 1);
+                    String city = favorite.getString("city");
+                    String state = favorite.getString("state");
+                    Log.d(TAG, "Removing favorite: " + city + ", " + state);
+                    removeFavorite(city, state);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error getting favorite data: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
 
     private void setupTabListener(JSONArray favorites) {
         tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -249,46 +380,7 @@ public class MainActivity extends AppCompatActivity {
         requestQueue.add(request);
     }
 
-    private void setupClickListeners() {
-        ImageView searchIcon = findViewById(R.id.imageView10);
-        searchIcon.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, SearchActivity.class);
-            intent.putExtra("latitude", latitude);
-            intent.putExtra("longitude", longitude);
-            intent.putExtra("locationInWords", locationInWords);
-            startActivity(intent);
-        });
 
-        findViewById(R.id.cardView1).setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
-            intent.putExtra("latitude", latitude);
-            intent.putExtra("longitude", longitude);
-            intent.putExtra("city_name", locationInWords);
-            TextView tempView = findViewById(R.id.todayTemp);
-            String tempText = tempView.getText().toString();
-            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
-            intent.putExtra("temperature", temperature);
-            startActivity(intent);
-        });
-
-        FloatingActionButton fab = findViewById(R.id.fab_favorite);
-        fab.setOnClickListener(v -> {
-            int selectedPosition = tabDots.getSelectedTabPosition();
-            if (selectedPosition > 0) {
-                try {
-                    JSONObject favorite = favoritesData.getJSONObject(selectedPosition - 1);
-                    String city = favorite.getString("city");
-                    String state = favorite.getString("state");
-                    removeFavorite(city, state);
-                } catch (JSONException e) {
-                    Log.e(TAG, "Error getting favorite data: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -430,6 +522,18 @@ public class MainActivity extends AppCompatActivity {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         String todaysDate = formatter.format(new Date());
 
+        // Log the state when fetchAllWeatherData is called
+        Log.d(TAG, String.format("fetchAllWeatherData called {\n" +
+                        "  isDataLoaded: %b\n" +
+                        "  latitude: %s\n" +
+                        "  longitude: %s\n" +
+                        "  locationInWords: %s\n" +
+                        "}",
+                isDataLoaded,
+                latitude,
+                longitude,
+                locationInWords));
+
         String forecastUrl = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude +
                 "&longitude=" + this.longitude;
         String todayUrl = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
@@ -437,6 +541,8 @@ public class MainActivity extends AppCompatActivity {
 
         JsonObjectRequest forecastRequest = new JsonObjectRequest(Request.Method.GET, forecastUrl, null,
                 response -> {
+                    logWeatherApiCall("forecast", "fetchAllWeatherData",
+                            String.format("lat=%s,lon=%s", latitude, longitude));
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             JSONArray dailyData = response.getJSONArray("data");
@@ -450,12 +556,14 @@ public class MainActivity extends AppCompatActivity {
                     }
                 },
                 error -> {
-                    showError("Error fetching weather data");
                     Log.e(TAG, "Error fetching weather data: " + error.getMessage());
+                    showError("Error fetching weather data");
                 });
 
         JsonObjectRequest todayRequest = new JsonObjectRequest(Request.Method.GET, todayUrl, null,
                 response -> {
+                    logWeatherApiCall("day-weather", "fetchAllWeatherData",
+                            String.format("lat=%s,lon=%s,date=%s", latitude, longitude, todaysDate));
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
                             JSONObject data = response.getJSONObject("data");
@@ -469,8 +577,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                 },
                 error -> {
-                    showError("Error fetching weather data");
                     Log.e(TAG, "Error fetching weather data: " + error.getMessage());
+                    showError("Error fetching weather data");
                 });
 
         forecastRequest.setRetryPolicy(new DefaultRetryPolicy(15000, 3, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
