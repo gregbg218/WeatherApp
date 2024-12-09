@@ -12,20 +12,28 @@ import com.highsoft.highcharts.core.HIChartView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
 
 public class WeatherDataFragment extends Fragment {
     private HIChartView chartView;
+    private Random random;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_weather_data, container, false);
         chartView = view.findViewById(R.id.chart_view);
-        setupChartWithDummyData();
+        random = new Random();
+        setupChartWithRandomData();
         return view;
     }
 
-    private void setupChartWithDummyData() {
+    private double getRandomPercentage() {
+        // Generate random value between 0 and 100
+        return random.nextDouble() * 100;
+    }
+
+    private void setupChartWithRandomData() {
         HIOptions options = new HIOptions();
 
         // Chart configuration
@@ -45,10 +53,8 @@ public class WeatherDataFragment extends Fragment {
         tooltip.setBorderWidth(0);
         tooltip.setBackgroundColor(HIColor.initWithName("none"));
 
-        // Fixed shadow configuration
-        // Replace the previous shadow code with this:
         HIShadowOptionsObject shadowOptions = new HIShadowOptionsObject();
-        shadowOptions.setColor(HIColor.initWithRGBA(0, 0, 0, 0).toString());  // Transparent color for no shadow
+        shadowOptions.setColor(HIColor.initWithRGBA(0, 0, 0, 0).toString());
         shadowOptions.setOffsetX(0);
         shadowOptions.setOffsetY(0);
         shadowOptions.setOpacity(0);
@@ -57,7 +63,7 @@ public class WeatherDataFragment extends Fragment {
 
         tooltip.setStyle(new HICSSObject());
         tooltip.getStyle().setFontSize("16px");
-        tooltip.setPointFormat("{series.name}<br><span style=\"font-size:2em; color: {point.color}; font-weight: bold\">{point.y}%</span>");
+        tooltip.setPointFormat("{series.name}<br><span style=\"font-size:2em; color: {point.color}; font-weight: bold\">{point.y:.1f}%</span>");
         options.setTooltip(tooltip);
 
         // Pane configuration
@@ -117,14 +123,19 @@ public class WeatherDataFragment extends Fragment {
         plotOptions.getSolidgauge().setRounded(true);
         options.setPlotOptions(plotOptions);
 
-        // Series data
+        // Series data with random values
         ArrayList<HISeries> series = new ArrayList<>();
 
-        HISolidgauge gauge1 = createGaugeSeries("Cloud Cover", 80, "112%", "88%",
+        // Generate random values with some realistic constraints
+        double cloudCover = Math.min(100, Math.max(0, getRandomPercentage())); // 0-100%
+        double precipitation = Math.min(100, Math.max(0, getRandomPercentage() * 0.7)); // 0-70%
+        double humidity = Math.min(100, Math.max(30, 30 + getRandomPercentage() * 0.7)); // 30-100%
+
+        HISolidgauge gauge1 = createGaugeSeries("Cloud Cover", cloudCover, "112%", "88%",
                 HIColor.initWithRGB(76, 175, 80));
-        HISolidgauge gauge2 = createGaugeSeries("Precipitation", 65, "87%", "63%",
+        HISolidgauge gauge2 = createGaugeSeries("Precipitation", precipitation, "87%", "63%",
                 HIColor.initWithRGB(33, 150, 243));
-        HISolidgauge gauge3 = createGaugeSeries("Humidity", 50, "62%", "38%",
+        HISolidgauge gauge3 = createGaugeSeries("Humidity", humidity, "62%", "38%",
                 HIColor.initWithRGB(244, 67, 54));
 
         series.add(gauge1);
