@@ -19,13 +19,16 @@ import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.android.volley.DefaultRetryPolicy;
@@ -35,6 +38,7 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.tabs.TabLayoutMediator;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -88,12 +92,14 @@ public class MainActivity extends AppCompatActivity {
     private void setupFavoritesPager() {
         viewPager = findViewById(R.id.viewPager2);
         tabDots = findViewById(R.id.tabDots);
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
 
         // Clear existing tabs first
         tabDots.removeAllTabs();
 
-        // Add current location tab
+        // Add first tab for current location
         tabDots.addTab(tabDots.newTab());
+        fab.setVisibility(View.INVISIBLE);
 
         String favoritesUrl = "http://10.0.2.2:3001/api/favorites/list";
 
@@ -103,69 +109,40 @@ public class MainActivity extends AppCompatActivity {
                         if (response.has("success") && response.getBoolean("success")) {
                             favoritesData = response.getJSONArray("data");
 
-                            // Add a tab for each favorite
+                            // Add tabs for favorites after current location
                             for (int i = 0; i < favoritesData.length(); i++) {
                                 tabDots.addTab(tabDots.newTab());
                             }
 
-                            tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+                            // Set up the ViewPager2 adapter with total count (current location + favorites)
+                            viewPager.setAdapter(new FavoritesAdapter(favoritesData.length() + 1));
+
+                            // Connect TabLayout with ViewPager2
+                            connectTabLayoutWithViewPager();
+
+                            // Add tab selection listener
+                            setupTabListener(favoritesData);
+
+                            // Set up ViewPager page change callback
+                            viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
                                 @Override
-                                public void onTabSelected(TabLayout.Tab tab) {
-                                    FloatingActionButton fab = findViewById(R.id.fab_favorite);
-                                    int position = tab.getPosition();
-                                    updateFabVisibility();  // Update FAB visibility
+                                public void onPageSelected(int position) {
+                                    // Show FAB for favorites, hide for current location
+                                    fab.setVisibility(position == 0 ? View.INVISIBLE : View.VISIBLE);
 
                                     if (position == 0) {
-                                        isDataLoaded = false;
                                         getCurrentLocationData();
                                     } else {
                                         try {
                                             JSONObject favorite = favoritesData.getJSONObject(position - 1);
                                             String city = favorite.getString("city");
                                             String state = favorite.getString("state");
-                                            locationInWords = city + ", " + state;
-                                            isDataLoaded = false;
-
-                                            // Fixed geocoding URL
-                                            String encodedCity = URLEncoder.encode(city, "UTF-8");
-                                            String encodedState = URLEncoder.encode(state.replace(", USA", ""), "UTF-8");
-                                            String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" +
-                                                    encodedCity + "," + encodedState;
-                                            JsonObjectRequest geoRequest = new JsonObjectRequest(
-                                                    Request.Method.GET, geocodingUrl, null,
-                                                    geoResponse -> {
-                                                        try {
-                                                            if (geoResponse.getBoolean("success")) {
-                                                                JSONObject data = geoResponse.getJSONObject("coordinates");
-                                                                latitude = data.getString("latitude");
-                                                                longitude = data.getString("longitude");
-                                                                fetchAllWeatherData();
-                                                            }
-                                                        } catch (JSONException e) {
-                                                            Log.e(TAG, "Error parsing geocoding: " + e.getMessage() + " " + geocodingUrl);
-                                                        }
-                                                    },
-                                                    error -> Log.e(TAG, "Geocoding error: " + error.getMessage())
-                                            );
-
-                                            geoRequest.setRetryPolicy(new DefaultRetryPolicy(
-                                                    15000,
-                                                    3,
-                                                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-                                            requestQueue.add(geoRequest);
-
-                                        } catch (JSONException | UnsupportedEncodingException e) {
-                                            Log.e(TAG, "Error processing favorite: " + e.getMessage());
+                                            getCoordinatesAndUpdateWeather(city, state);
+                                        } catch (JSONException e) {
+                                            Log.e(TAG, "Error accessing favorite: " + e.getMessage());
                                         }
                                     }
                                 }
-
-                                @Override
-                                public void onTabUnselected(TabLayout.Tab tab) {}
-
-                                @Override
-                                public void onTabReselected(TabLayout.Tab tab) {}
                             });
                         }
                     } catch (JSONException e) {
@@ -178,19 +155,46 @@ public class MainActivity extends AppCompatActivity {
         requestQueue.add(request);
     }
 
+    // Add this helper method to update the FAB icon
+    private void updateFabIcon(int position) {
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        if (position == 0) {
+            fab.setImageResource(R.drawable.add_fav);
+        } else {
+            fab.setImageResource(R.drawable.rem_fav);
+        }
+    }
+
+    // Add this method after setupFavoritesPager()
+    private void connectTabLayoutWithViewPager() {
+        // Create a Mediator for viewPager and tabDots
+        TabLayoutMediator mediator = new TabLayoutMediator(tabDots, viewPager,
+                (tab, position) -> {
+                    // This is called to configure each tab.
+                    // We don't need to do anything here since we're using custom dots
+                }
+        );
+        mediator.attach();
+    }
+
     private void setupTabListener(JSONArray favorites) {
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+
         tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 int position = tab.getPosition();
                 isDataLoaded = false;
 
+                // Show/hide FAB based on whether it's current location or favorite
+                fab.setVisibility(position == 0 ? View.INVISIBLE : View.VISIBLE);
+
                 if (position == 0) {
                     // Current location tab
                     getCurrentLocationData();
                 } else {
                     try {
-                        // Get the corresponding favorite
+                        // Get the corresponding favorite (position - 1 because first tab is current location)
                         JSONObject favorite = favorites.getJSONObject(position - 1);
                         String city = favorite.getString("city");
                         String state = favorite.getString("state");
@@ -704,8 +708,39 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        setupFavoritesPager();
         if (latitude == null || longitude == null) {
             getCurrentLocationData();
+        }
+        isDataLoaded = false;
+    }
+
+
+    private class FavoritesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+        private final int itemCount;
+
+        FavoritesAdapter(int count) {
+            this.itemCount = count;
+        }
+
+        @NonNull
+        @Override
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = new View(parent.getContext());
+            view.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            return new RecyclerView.ViewHolder(view) {};
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            // Content is managed by your existing weather data loading logic
+        }
+
+        @Override
+        public int getItemCount() {
+            return itemCount;
         }
     }
 }
