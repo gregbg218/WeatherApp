@@ -46,6 +46,8 @@ import java.util.List;
 public class SearchActivity extends AppCompatActivity {
     private static final String TAG = "SearchActivity";
 
+
+
     private String selectedCity = null;
     private String selectedState = null;
     private static final String BASE_URL = "http://10.0.2.2:3001";
@@ -448,8 +450,9 @@ public class SearchActivity extends AppCompatActivity {
         TextView visibilityView = findViewById(R.id.Visibility_Value);
         TextView pressureView = findViewById(R.id.Pressure_Value);
 
+        // Remove the multiplication by 100 since the API already provides percentage
         double humidity = data.optDouble("humidity", 0);
-        humidityView.setText(String.format("%.0f%%", humidity * 100));
+        humidityView.setText(String.format("%.0f%%", humidity));
 
         double windSpeed = data.optDouble("windSpeed", 0);
         windSpeedView.setText(String.format("%.2f mph", windSpeed));
@@ -530,7 +533,7 @@ public class SearchActivity extends AppCompatActivity {
         try {
             String encodedCity = URLEncoder.encode(selectedCity, "UTF-8");
             String encodedState = URLEncoder.encode(selectedState, "UTF-8");
-            String url = String.format("http://10.0.2.2:3001/api/favorites/status?city=%s&state=%s",
+            String url = String.format(BASE_URL+"/api/favorites/status?city=%s&state=%s",
                     encodedCity, encodedState);
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
@@ -555,7 +558,7 @@ public class SearchActivity extends AppCompatActivity {
         try {
             String encodedCity = URLEncoder.encode(selectedCity, "UTF-8");
             String encodedState = URLEncoder.encode(selectedState, "UTF-8");
-            String deleteUrl = String.format("http://10.0.2.2:3001/api/favorites/remove?city=%s&state=%s",
+            String deleteUrl = String.format(BASE_URL+"/api/favorites/remove?city=%s&state=%s",
                     encodedCity, encodedState);
 
             JsonObjectRequest request = new JsonObjectRequest(
@@ -606,7 +609,7 @@ public class SearchActivity extends AppCompatActivity {
             return;
         }
 
-        String addUrl = "http://10.0.2.2:3001/api/favorites/add";
+        String addUrl = BASE_URL+"/api/favorites/add";
 
         JsonObjectRequest request = new JsonObjectRequest(
                 Request.Method.POST,

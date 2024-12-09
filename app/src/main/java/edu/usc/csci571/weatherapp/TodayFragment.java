@@ -36,6 +36,8 @@ public class TodayFragment extends Fragment {
     private ImageView weatherIcon;
     private ProgressBar progressBar;
 
+    private static final String BASE_URL = "http://10.0.2.2:3001";
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -82,7 +84,7 @@ public class TodayFragment extends Fragment {
         }
 
         Log.d(TAG, "Fetching weather data for lat: " + latitude + ", lon: " + longitude + ", date: " + todaysDate);
-        String url = "http://10.0.2.2:3001/api/weather/day-weather" +
+        String url = BASE_URL+"/api/weather/day-weather" +
                 "?latitude=" + latitude +
                 "&longitude=" + longitude +
                 "&date=" + todaysDate;

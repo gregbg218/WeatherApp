@@ -14,6 +14,8 @@ import com.google.android.material.tabs.TabLayoutMediator;
 
 public class WeatherDetailsActivity extends AppCompatActivity {
     private static final String TAG = "WeatherDetailsActivity";
+
+    private static final String BASE_URL = "http://10.0.2.2:3001";
     private ViewPager2 viewPager;
     private TabLayout tabLayout;
     private String latitude;

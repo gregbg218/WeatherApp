@@ -44,6 +44,8 @@ import edu.usc.csci571.weatherapp.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
+
+    private static final String BASE_URL = "http://10.0.2.2:3001";
     private static int weatherApiCalls = 0;
     private static long lastResetTime = System.currentTimeMillis();
     private static final int API_CALL_LIMIT = 1000;
@@ -142,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
             tabDots.removeOnTabSelectedListener(currentTabListener);
         }
 
-        String favoritesUrl = "http://10.0.2.2:3001/api/favorites/list";
+        String favoritesUrl = BASE_URL+"/api/favorites/list";
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, favoritesUrl, null,
                 response -> {
@@ -202,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
 
                                             String encodedCity = URLEncoder.encode(city, "UTF-8");
                                             String encodedState = URLEncoder.encode(state.replace(", USA", ""), "UTF-8");
-                                            String geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" +
+                                            String geocodingUrl = BASE_URL+"/api/geocoding/coordinates?address=" +
                                                     encodedCity + "," + encodedState;
 
                                             JsonObjectRequest geoRequest = new JsonObjectRequest(
@@ -362,7 +364,7 @@ public class MainActivity extends AppCompatActivity {
     private void getCoordinatesAndUpdateWeather(String city, String state) {
         String geocodingUrl = null;
         try {
-            geocodingUrl = "http://10.0.2.2:3001/api/geocoding/coordinates?address=" + URLEncoder.encode(city + "," + state, "UTF-8");
+            geocodingUrl = BASE_URL+"/api/geocoding/coordinates?address=" + URLEncoder.encode(city + "," + state, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
@@ -472,7 +474,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             String encodedCity = URLEncoder.encode(city, "UTF-8");
             String encodedState = URLEncoder.encode(state, "UTF-8");
-            String deleteUrl = String.format("http://10.0.2.2:3001/api/favorites/remove?city=%s&state=%s",
+            String deleteUrl = String.format(BASE_URL+"/api/favorites/remove?city=%s&state=%s",
                     encodedCity, encodedState);
 
             JsonObjectRequest request = new JsonObjectRequest(
@@ -570,9 +572,9 @@ public class MainActivity extends AppCompatActivity {
                 longitude,
                 locationInWords));
 
-        String forecastUrl = "http://10.0.2.2:3001/api/weather/forecast?latitude=" + this.latitude +
+        String forecastUrl = BASE_URL+"/api/weather/forecast?latitude=" + this.latitude +
                 "&longitude=" + this.longitude;
-        String todayUrl = "http://10.0.2.2:3001/api/weather/day-weather?latitude=" + this.latitude +
+        String todayUrl = BASE_URL+"/api/weather/day-weather?latitude=" + this.latitude +
                 "&longitude=" + this.longitude + "&date=" + todaysDate;
 
         JsonObjectRequest forecastRequest = new JsonObjectRequest(Request.Method.GET, forecastUrl, null,

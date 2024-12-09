@@ -26,6 +26,8 @@ public class WeeklyFragment extends Fragment {
     private HIChartView chartView;
     private Random random;
 
+    private static final String BASE_URL = "http://10.0.2.2:3001";
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView: Starting fragment creation");
