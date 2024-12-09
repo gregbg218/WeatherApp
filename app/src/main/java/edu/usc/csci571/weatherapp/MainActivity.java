@@ -148,7 +148,14 @@ public class MainActivity extends AppCompatActivity {
                 response -> {
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
-                            favoritesData = response.getJSONArray("data");
+                            JSONArray apiResponse = response.getJSONArray("data");
+                            // Reverse the array to make newest entries appear last
+                            JSONArray reversedData = new JSONArray();
+                            for (int i = apiResponse.length() - 1; i >= 0; i--) {
+                                reversedData.put(apiResponse.get(i));
+                            }
+                            favoritesData = reversedData;
+
                             Log.d(TAG, "Fetched favorites data: " + favoritesData.length() + " favorites");
 
                             // Clear tabs again to be safe
@@ -157,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
                             // Add current location tab first
                             tabDots.addTab(tabDots.newTab());
 
-                            // Then add favorite tabs
+                            // Then add favorite tabs in reversed order
                             for (int i = 0; i < favoritesData.length(); i++) {
                                 tabDots.addTab(tabDots.newTab());
                             }
@@ -237,7 +244,6 @@ public class MainActivity extends AppCompatActivity {
 
                                 @Override
                                 public void onTabUnselected(TabLayout.Tab tab) {
-                                    // Cancel any pending requests when tab is unselected
                                     requestQueue.cancelAll(TAG + "_geo");
                                     requestQueue.cancelAll(TAG + "_weather");
                                 }
@@ -270,7 +276,6 @@ public class MainActivity extends AppCompatActivity {
         request.setTag(TAG + "_favorites");
         requestQueue.add(request);
     }
-
     private void setupClickListeners() {
         ImageView searchIcon = findViewById(R.id.imageView10);
         searchIcon.setOnClickListener(v -> {
