@@ -92,8 +92,8 @@ public class MainActivity extends AppCompatActivity {
         // Clear existing tabs first
         tabDots.removeAllTabs();
 
-        // Add current location tab
-        tabDots.addTab(tabDots.newTab());
+        // Don't add any tabs yet - wait for data
+        // Remove: tabDots.addTab(tabDots.newTab());
 
         String favoritesUrl = "http://10.0.2.2:3001/api/favorites/list";
 
@@ -103,11 +103,16 @@ public class MainActivity extends AppCompatActivity {
                         if (response.has("success") && response.getBoolean("success")) {
                             favoritesData = response.getJSONArray("data");
 
-                            // Add a tab for each favorite
+                            // Clear tabs again to be safe
+                            tabDots.removeAllTabs();
+
+                            // Add current location tab first
+                            tabDots.addTab(tabDots.newTab());
+
+                            // Then add favorite tabs
                             for (int i = 0; i < favoritesData.length(); i++) {
                                 tabDots.addTab(tabDots.newTab());
                             }
-
                             tabDots.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
                                 @Override
                                 public void onTabSelected(TabLayout.Tab tab) {
@@ -704,6 +709,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
+        setupFavoritesPager();  // Add this line to refresh the favorites
         if (latitude == null || longitude == null) {
             getCurrentLocationData();
         }
