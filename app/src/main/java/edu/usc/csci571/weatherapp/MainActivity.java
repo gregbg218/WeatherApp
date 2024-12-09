@@ -6,6 +6,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Menu;
@@ -463,7 +465,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void removeFavorite(String city, String state) {
         try {
-            // Create query parameters
             String encodedCity = URLEncoder.encode(city, "UTF-8");
             String encodedState = URLEncoder.encode(state, "UTF-8");
             String deleteUrl = String.format("http://10.0.2.2:3001/api/favorites/remove?city=%s&state=%s",
@@ -472,15 +473,46 @@ public class MainActivity extends AppCompatActivity {
             JsonObjectRequest request = new JsonObjectRequest(
                     Request.Method.DELETE,
                     deleteUrl,
-                    null,  // No body needed since we're using query parameters
+                    null,
                     response -> {
                         try {
                             if (response.getBoolean("success")) {
+                                // First, switch to current location tab
+                                runOnUiThread(() -> {
+                                    // Force selection of first tab (current location)
+                                    if (tabDots.getTabCount() > 0) {
+                                        TabLayout.Tab firstTab = tabDots.getTabAt(0);
+                                        if (firstTab != null) {
+                                            // Clear data before tab switch to prevent old data display
+                                            isDataLoaded = false;
+                                            firstTab.select();
+                                            // Immediately load current location data
+                                            getCurrentLocationData();
+                                        }
+                                    }
+
+                                    // After ensuring we're on the current location tab, clean up the old data
+                                    new Handler(Looper.getMainLooper()).post(() -> {
+                                        // Clear existing tabs and listeners
+                                        tabDots.clearOnTabSelectedListeners();
+                                        tabDots.removeAllTabs();
+
+                                        // Reset ViewPager
+                                        if (viewPager != null) {
+                                            viewPager.setAdapter(null);
+                                        }
+
+                                        // Clear favorites data
+                                        favoritesData = null;
+
+                                        // Now rebuild the pager with fresh data
+                                        setupFavoritesPager();
+                                    });
+                                });
+
                                 Toast.makeText(MainActivity.this,
                                         city + ", " + state + " removed from favorites",
                                         Toast.LENGTH_SHORT).show();
-                                setupFavoritesPager();
-                                tabDots.selectTab(tabDots.getTabAt(0));
                             } else {
                                 Toast.makeText(MainActivity.this,
                                         "Failed to remove from favorites",
@@ -517,7 +549,6 @@ public class MainActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         }
     }
-
     private void fetchAllWeatherData() {
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         String todaysDate = formatter.format(new Date());
