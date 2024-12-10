@@ -45,7 +45,7 @@ public class WeatherDataFragment extends Fragment {
 
         // Title configuration
         HITitle title = new HITitle();
-        title.setText("Weather Data");
+        title.setText("Stat Summary");
         title.setStyle(new HICSSObject());
         title.getStyle().setFontSize("24px");
         options.setTitle(title);
@@ -76,20 +76,20 @@ public class WeatherDataFragment extends Fragment {
         ArrayList<HIBackground> backgrounds = new ArrayList<>();
 
         HIBackground bg1 = new HIBackground();
-        bg1.setOuterRadius("112%");
-        bg1.setInnerRadius("88%");
+        bg1.setOuterRadius("100%"); // Reduced from 112%
+        bg1.setInnerRadius("80%");  // Reduced from 88%
         bg1.setBackgroundColor(HIColor.initWithRGBA(76, 175, 80, 0.35));
         bg1.setBorderWidth(0);
 
         HIBackground bg2 = new HIBackground();
-        bg2.setOuterRadius("87%");
-        bg2.setInnerRadius("63%");
+        bg2.setOuterRadius("75%"); // Reduced from 87%
+        bg2.setInnerRadius("55%"); // Reduced from 63%
         bg2.setBackgroundColor(HIColor.initWithRGBA(33, 150, 243, 0.35));
         bg2.setBorderWidth(0);
 
         HIBackground bg3 = new HIBackground();
-        bg3.setOuterRadius("62%");
-        bg3.setInnerRadius("38%");
+        bg3.setOuterRadius("50%"); // Reduced from 62%
+        bg3.setInnerRadius("30%"); // Reduced from 38%
         bg3.setBackgroundColor(HIColor.initWithRGBA(244, 67, 54, 0.35));
         bg3.setBorderWidth(0);
 
@@ -133,11 +133,11 @@ public class WeatherDataFragment extends Fragment {
         double precipitation = Math.min(100, Math.max(0, getRandomPercentage() * 0.7)); // 0-70%
         double humidity = Math.min(100, Math.max(30, 30 + getRandomPercentage() * 0.7)); // 30-100%
 
-        HISolidgauge gauge1 = createGaugeSeries("Cloud Cover", cloudCover, "112%", "88%",
+        HISolidgauge gauge1 = createGaugeSeries("Cloud Cover", cloudCover, "100%", "80%",
                 HIColor.initWithRGB(76, 175, 80));
-        HISolidgauge gauge2 = createGaugeSeries("Precipitation", precipitation, "87%", "63%",
+        HISolidgauge gauge2 = createGaugeSeries("Precipitation", precipitation, "75%", "55%",
                 HIColor.initWithRGB(33, 150, 243));
-        HISolidgauge gauge3 = createGaugeSeries("Humidity", humidity, "62%", "38%",
+        HISolidgauge gauge3 = createGaugeSeries("Humidity", humidity, "50%", "30%",
                 HIColor.initWithRGB(244, 67, 54));
 
         series.add(gauge1);
@@ -154,6 +154,7 @@ public class WeatherDataFragment extends Fragment {
         gauge.setName(name);
         HIData data = new HIData();
         data.setColor(color);
+        // Adjust radii
         data.setRadius(outerRadius);
         data.setInnerRadius(innerRadius);
         data.setY(value);

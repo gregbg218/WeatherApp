@@ -18,7 +18,7 @@
             android:layout_marginBottom="96dp"
             android:text="Weather Data"
             android:textAlignment="center"
-            android:textColor="@color/white"
+            android:textColor="#8C8C8C"
             android:textSize="20sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
