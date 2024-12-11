@@ -9,12 +9,14 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class WeatherPagerAdapter extends FragmentStateAdapter {
     private static final String TAG = "WeatherPagerAdapter";
     private final String latitude;
     private final String longitude;
     private JSONArray forecastData;
+    private JSONObject weatherData;
 
     public WeatherPagerAdapter(FragmentActivity fragmentActivity, String latitude, String longitude) {
         super(fragmentActivity);
@@ -29,6 +31,12 @@ public class WeatherPagerAdapter extends FragmentStateAdapter {
         notifyDataSetChanged();
     }
 
+    public void setWeatherData(JSONObject data) {
+        this.weatherData = data;
+        Log.d(TAG, "Weather data set");
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public Fragment createFragment(int position) {
@@ -37,10 +45,14 @@ public class WeatherPagerAdapter extends FragmentStateAdapter {
         args.putString("latitude", latitude);
         args.putString("longitude", longitude);
 
-        // Add forecast data to arguments if available
         if (forecastData != null) {
             args.putString("forecast_data", forecastData.toString());
             Log.d(TAG, "Adding forecast data to fragment at position " + position);
+        }
+
+        if (weatherData != null) {
+            args.putString("weather_data", weatherData.toString());
+            Log.d(TAG, "Adding weather data to fragment at position " + position);
         }
 
         switch (position) {
@@ -67,15 +79,5 @@ public class WeatherPagerAdapter extends FragmentStateAdapter {
     @Override
     public int getItemCount() {
         return 3;
-    }
-
-    @Override
-    public long getItemId(int position) {
-        return super.getItemId(position);
-    }
-
-    @Override
-    public boolean containsItem(long itemId) {
-        return super.containsItem(itemId);
     }
 }

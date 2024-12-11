@@ -39,6 +39,7 @@ import java.net.URLEncoder;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import edu.usc.csci571.weatherapp.databinding.ActivityMainBinding;
 
@@ -298,27 +299,35 @@ public class MainActivity extends AppCompatActivity {
     }
     private void setupClickListeners() {
         findViewById(R.id.cardView1).setOnClickListener(v -> {
-            Log.d(TAG, "Weather card clicked - Starting forecast API call sequence");
+            Log.d(TAG, "Weather card clicked - Starting API call sequence");
 
             // Show loading state
             showLoading();
 
+            // Prepare URLs for both API calls
             String forecastUrl = BASE_URL + "/api/weather/forecast" +
                     "?latitude=" + latitude +
                     "&longitude=" + longitude;
 
-            Log.d(TAG, String.format("Making forecast API call {\n" +
-                    "  URL: %s\n" +
+            String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+            String dayWeatherUrl = BASE_URL + "/api/weather/day-weather" +
+                    "?latitude=" + latitude +
+                    "&longitude=" + longitude +
+                    "&date=" + todayDate;
+
+            Log.d(TAG, String.format("Making API calls {\n" +
+                    "  Forecast URL: %s\n" +
+                    "  Day Weather URL: %s\n" +
                     "  Latitude: %s\n" +
                     "  Longitude: %s\n" +
-                    "}", forecastUrl, latitude, longitude));
+                    "}", forecastUrl, dayWeatherUrl, latitude, longitude));
 
+            // Create requests for both APIs
             JsonObjectRequest forecastRequest = new JsonObjectRequest(
                     Request.Method.GET,
                     forecastUrl,
                     null,
                     response -> {
-                        hideLoading(); // Hide loading on success
                         Log.d(TAG, "Forecast API response received");
 
                         try {
@@ -329,32 +338,75 @@ public class MainActivity extends AppCompatActivity {
                                         "  Data: %s\n" +
                                         "}", forecastData.length(), forecastData.toString()));
 
-                                // Create and launch intent
-                                Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
-                                intent.putExtra("latitude", latitude);
-                                intent.putExtra("longitude", longitude);
-                                intent.putExtra("city_name", locationInWords);
-                                intent.putExtra("forecast_data", forecastData.toString());
+                                // Now make the day weather request
+                                JsonObjectRequest dayWeatherRequest = new JsonObjectRequest(
+                                        Request.Method.GET,
+                                        dayWeatherUrl,
+                                        null,
+                                        dayResponse -> {
+                                            hideLoading(); // Hide loading after both requests complete
+                                            Log.d(TAG, "Day weather API response received");
 
-                                TextView tempView = findViewById(R.id.todayTemp);
-                                String tempText = tempView.getText().toString();
-                                int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
-                                intent.putExtra("temperature", temperature);
+                                            try {
+                                                if (dayResponse.has("success") && dayResponse.getBoolean("success")) {
+                                                    JSONObject weatherData = dayResponse.getJSONObject("data");
+                                                    Log.d(TAG, "Successfully parsed day weather data");
 
-                                Log.d(TAG, "Starting WeatherDetailsActivity with forecast data");
-                                startActivity(intent);
+                                                    // Create and launch intent with both data sets
+                                                    Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
+                                                    intent.putExtra("latitude", latitude);
+                                                    intent.putExtra("longitude", longitude);
+                                                    intent.putExtra("city_name", locationInWords);
+                                                    intent.putExtra("forecast_data", forecastData.toString());
+                                                    intent.putExtra("weather_data", weatherData.toString());
+
+                                                    TextView tempView = findViewById(R.id.todayTemp);
+                                                    String tempText = tempView.getText().toString();
+                                                    int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+                                                    intent.putExtra("temperature", temperature);
+
+                                                    Log.d(TAG, "Starting WeatherDetailsActivity with both forecast and weather data");
+                                                    startActivity(intent);
+
+                                                } else {
+                                                    Log.e(TAG, "Day weather API returned success:false - " + dayResponse.toString());
+                                                    showError("Error fetching weather data");
+                                                }
+                                            } catch (JSONException e) {
+                                                Log.e(TAG, "Error parsing day weather response: " + e.getMessage(), e);
+                                                showError("Error processing weather data");
+                                            }
+                                        },
+                                        error -> {
+                                            hideLoading();
+                                            Log.e(TAG, String.format("Day weather API error {\n" +
+                                                            "  Error: %s\n" +
+                                                            "  Status Code: %d\n" +
+                                                            "  Headers: %s\n" +
+                                                            "}",
+                                                    error.getMessage(),
+                                                    error.networkResponse != null ? error.networkResponse.statusCode : -1,
+                                                    error.networkResponse != null ? error.networkResponse.headers : "none"));
+
+                                            showError("Error fetching weather data");
+                                        });
+
+                                configureRequest(dayWeatherRequest);
+                                requestQueue.add(dayWeatherRequest);
 
                             } else {
-                                Log.e(TAG, "API returned success:false - " + response.toString());
+                                hideLoading();
+                                Log.e(TAG, "Forecast API returned success:false - " + response.toString());
                                 showError("Error fetching forecast data");
                             }
                         } catch (JSONException e) {
+                            hideLoading();
                             Log.e(TAG, "Error parsing forecast response: " + e.getMessage(), e);
                             showError("Error processing weather data");
                         }
                     },
                     error -> {
-                        hideLoading(); // Hide loading on error
+                        hideLoading();
                         Log.e(TAG, String.format("Forecast API error {\n" +
                                         "  Error: %s\n" +
                                         "  Status Code: %d\n" +
@@ -368,6 +420,7 @@ public class MainActivity extends AppCompatActivity {
                     });
 
             configureRequest(forecastRequest);
+            requestQueue.add(forecastRequest);
         });
     }
 
