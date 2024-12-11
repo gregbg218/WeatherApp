@@ -5,223 +5,213 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.fragment.app.Fragment;
 import com.highsoft.highcharts.core.HIChartView;
 import com.highsoft.highcharts.common.hichartsclasses.*;
 import com.highsoft.highcharts.common.HIColor;
-import com.highsoft.highcharts.common.HIGradient;
-import com.highsoft.highcharts.common.HIStop;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Random;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class WeeklyFragment extends Fragment {
     private static final String TAG = "WeeklyFragment";
     private HIChartView chartView;
-    private Random random;
-
-    private static final String BASE_URL = "http://10.0.2.2:3001";
+    private ProgressBar progressBar;
+    private View mainContent;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView: Starting fragment creation");
         View view = inflater.inflate(R.layout.fragment_weekly, container, false);
 
+        // Initialize views
         chartView = view.findViewById(R.id.chart_view);
+        progressBar = view.findViewById(R.id.progress_bar);
+        mainContent = view.findViewById(R.id.textView6);
+
         if (chartView == null) {
             Log.e(TAG, "chartView is null! Check if R.id.chart_view exists in fragment_weekly.xml");
             Toast.makeText(requireContext(), "Error: Chart view not found", Toast.LENGTH_SHORT).show();
             return view;
         }
-        Log.d(TAG, "ChartView found successfully");
 
-        random = new Random();
-        generateAndDisplayData();
+        // Load and process data
+        loadForecastData();
         return view;
     }
 
-    private void generateAndDisplayData() {
-        Log.d(TAG, "Generating random weather data");
-        setupChart(generateRandomWeatherData());
-    }
+    private void loadForecastData() {
+        Log.d(TAG, "Starting to load forecast data");
+        showLoading();
 
+        Bundle args = getArguments();
+        if (args != null && args.containsKey("forecast_data")) {
+            try {
+                String forecastDataStr = args.getString("forecast_data");
+                Log.d(TAG, "Received forecast data string: " + forecastDataStr);
 
+                JSONArray forecastData = new JSONArray(forecastDataStr);
+                Log.d(TAG, "Successfully parsed forecast data with " + forecastData.length() + " days");
 
-    private static class WeatherDataPoint {
-        String date;
-        double lowTemp;
-        double highTemp;
-
-        WeatherDataPoint(String date, double lowTemp, double highTemp) {
-            this.date = date;
-            this.lowTemp = lowTemp;
-            this.highTemp = highTemp;
+                setupChart(forecastData);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error parsing forecast data: " + e.getMessage(), e);
+                showError("Error processing weather data");
+            } finally {
+                hideLoading();
+            }
+        } else {
+            Log.w(TAG, "No forecast data found in arguments");
+            showError("No weather data available");
+            hideLoading();
         }
     }
 
-    private void setupChart(ArrayList<WeatherDataPoint> weatherData) {
+    private void setupChart(JSONArray forecastData) {
         try {
             HIOptions options = new HIOptions();
 
             // Chart configuration
             HIChart chart = new HIChart();
             chart.setType("arearange");
-            chart.setBackgroundColor(HIColor.initWithName("transparent"));
-            chart.setPlotBackgroundColor(HIColor.initWithName("white"));
-            chart.setMarginTop(35); // Add margin for title
+            chart.setBackgroundColor(HIColor.initWithName("white"));
             options.setChart(chart);
 
-            // Add title back
+            // Remove title as it's in the layout
             HITitle title = new HITitle();
-            title.setText("Temperature variation by day");
-            HICSSObject titleStyle = new HICSSObject();
-            titleStyle.setColor("#8C8C8C");
-            titleStyle.setFontSize("14px");
-            title.setStyle(titleStyle);
-            title.setAlign("center");
-            title.setMargin(15);
+            title.setText("");
             options.setTitle(title);
 
             // Y-Axis configuration
             HIYAxis yaxis = new HIYAxis();
             yaxis.setTitle(new HITitle());
-            yaxis.getTitle().setText("Values");
-
-            // Configure grid lines
+            yaxis.getTitle().setText("Temperature (°F)");
+            yaxis.setMin(30.0);
+            yaxis.setMax(80.0);
+            yaxis.setTickInterval(10.0);
             yaxis.setGridLineColor(HIColor.initWithHexValue("#E5E5E5"));
             yaxis.setGridLineWidth(1);
-            yaxis.setGridLineDashStyle("Solid");
-            yaxis.setMin(40);
-            yaxis.setMax(80);
-            yaxis.setTickInterval(5);
 
-            // Show ALL grid lines
-            yaxis.setMinorGridLineWidth(1);
-            yaxis.setMinorTickInterval(1);
-            yaxis.setMinorGridLineColor(HIColor.initWithHexValue("#E5E5E5"));
-
+            // Configure Y-axis labels
             HILabels yLabels = new HILabels();
             HICSSObject yLabelStyle = new HICSSObject();
             yLabelStyle.setColor("#8C8C8C");
             yLabels.setStyle(yLabelStyle);
             yaxis.setLabels(yLabels);
 
-            options.setYAxis(new ArrayList<>(Arrays.asList(yaxis)));
+            ArrayList<HIYAxis> yAxes = new ArrayList<>();
+            yAxes.add(yaxis);
+            options.setYAxis(yAxes);
 
             // X-Axis configuration
             HIXAxis xaxis = new HIXAxis();
             xaxis.setType("category");
-            xaxis.setGridLineWidth(0);
             HILabels xLabels = new HILabels();
             HICSSObject xLabelStyle = new HICSSObject();
             xLabelStyle.setColor("#8C8C8C");
             xLabels.setStyle(xLabelStyle);
             xaxis.setLabels(xLabels);
-            options.setXAxis(new ArrayList<>(Arrays.asList(xaxis)));
 
-            // Legend
-            HILegend legend = new HILegend();
-            legend.setEnabled(false);
-            options.setLegend(legend);
+            ArrayList<HIXAxis> xAxes = new ArrayList<>();
+            xAxes.add(xaxis);
+            options.setXAxis(xAxes);
 
-            // Series data
+            // Series data processing
             HIArearange series = new HIArearange();
             series.setName("Temperature Range");
             ArrayList<Object[]> seriesData = new ArrayList<>();
             ArrayList<String> categories = new ArrayList<>();
 
-            Calendar calendar = Calendar.getInstance();
+            SimpleDateFormat inputFormat = new SimpleDateFormat("EEEE, MMM dd, yyyy", Locale.US);
             SimpleDateFormat outputFormat = new SimpleDateFormat("dd MMM", Locale.US);
 
-            for (int i = 0; i < 5; i++) {
-                WeatherDataPoint day = weatherData.get(i);
-                seriesData.add(new Object[]{i, day.lowTemp, day.highTemp});
-                String formattedDate = outputFormat.format(calendar.getTime());
+            for (int i = 0; i < Math.min(forecastData.length(), 5); i++) {
+                JSONObject dayData = forecastData.getJSONObject(i);
+                double lowTemp = Double.parseDouble(dayData.getString("tempLow"));
+                double highTemp = Double.parseDouble(dayData.getString("tempHigh"));
+                String dateStr = dayData.getString("date");
+
+                Date date = inputFormat.parse(dateStr);
+                String formattedDate = outputFormat.format(date);
+
+                Log.d(TAG, String.format("Processing day %d: Date=%s, Low=%.1f, High=%.1f",
+                        i, formattedDate, lowTemp, highTemp));
+
                 categories.add(formattedDate);
-                calendar.add(Calendar.DAY_OF_MONTH, 1);
+                seriesData.add(new Object[]{i, lowTemp, highTemp});
             }
 
             series.setData(seriesData);
             xaxis.setCategories(categories);
 
-            // Gradient configuration
-            HIGradient gradient = new HIGradient(0, 0, 0, 1);
-            LinkedList<HIStop> stops = new LinkedList<>();
-            stops.add(new HIStop(0, HIColor.initWithRGBA(255, 179, 148, 1))); // Peach color at top
-            stops.add(new HIStop(1, HIColor.initWithRGBA(176, 214, 255, 1))); // Light blue at bottom
-            series.setFillColor(HIColor.initWithLinearGradient(gradient, stops));
-
-            // Add connecting line with gradient color
+            // Style the series
+            series.setColor(HIColor.initWithHexValue("#FF8C69")); // Peach color
+            series.setFillOpacity(0.3);
             series.setLineWidth(1);
-            series.setLineColor(HIColor.initWithRGBA(255, 179, 148, 1));
 
-            // Add markers with gradient color
-            HIMarker marker = new HIMarker();
-            marker.setEnabled(true);
-            marker.setRadius(4);
-            marker.setFillColor(HIColor.initWithRGBA(255, 179, 148, 1));
-            marker.setLineWidth(0);
-            series.setMarker(marker);
-
-            // Disable hover effects
-            HIStates states = new HIStates();
-            HIHover hover = new HIHover();
-            hover.setEnabled(false);
-            states.setHover(hover);
-            series.setStates(states);
-
-            // Disable tooltip
+            // Configure tooltip
             HITooltip tooltip = new HITooltip();
-            tooltip.setEnabled(false);
+            tooltip.setValueSuffix("°F");
+            tooltip.setPointFormat("Temperature Range:<br/>High: {point.high}°F<br/>Low: {point.low}°F");
             options.setTooltip(tooltip);
 
-            options.setSeries(new ArrayList<>(Arrays.asList(series)));
+            // Add series to options
+            ArrayList<HISeries> allSeries = new ArrayList<>();
+            allSeries.add(series);
+            options.setSeries(allSeries);
 
-            // Chart credits
+            // Remove credits
             HICredits credits = new HICredits();
             credits.setEnabled(false);
             options.setCredits(credits);
 
+            // Apply options to chart
             if (chartView != null) {
                 chartView.setOptions(options);
+                Log.d(TAG, "Chart setup completed successfully");
             }
 
         } catch (Exception e) {
             Log.e(TAG, "Error setting up chart: " + e.getMessage(), e);
-            Toast.makeText(requireContext(), "Error setting up chart", Toast.LENGTH_SHORT).show();
+            showError("Error displaying temperature chart");
         }
-    } // Update the data generation method to match the 5-day requirement
-    private ArrayList<WeatherDataPoint> generateRandomWeatherData() {
-        ArrayList<WeatherDataPoint> data = new ArrayList<>();
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    }
 
-        // Generate data for 5 days
-        for (int i = 0; i < 5; i++) {
-            // Base temperature between 60°F and 80°F
-            double baseTemp = 60 + random.nextDouble() * 20;
-
-            // Variation of 5-15 degrees for high and low
-            double variation = 5 + random.nextDouble() * 10;
-            double lowTemp = baseTemp - variation;
-            double highTemp = baseTemp + variation;
-
-            // Ensure temperatures stay within the 40-80 range
-            lowTemp = Math.max(40, Math.min(80, lowTemp));
-            highTemp = Math.max(40, Math.min(80, highTemp));
-
-            String date = dateFormat.format(calendar.getTime());
-            data.add(new WeatherDataPoint(date, lowTemp, highTemp));
-
-            calendar.add(Calendar.DAY_OF_MONTH, 1);
+    private void showLoading() {
+        if (progressBar != null) {
+            progressBar.setVisibility(View.VISIBLE);
         }
+        if (chartView != null) {
+            chartView.setVisibility(View.GONE);
+        }
+        if (mainContent != null) {
+            mainContent.setVisibility(View.GONE);
+        }
+    }
 
-        return data;
+    private void hideLoading() {
+        if (progressBar != null) {
+            progressBar.setVisibility(View.GONE);
+        }
+        if (chartView != null) {
+            chartView.setVisibility(View.VISIBLE);
+        }
+        if (mainContent != null) {
+            mainContent.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void showError(String message) {
+        if (getContext() != null) {
+            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+        }
+        Log.e(TAG, "Error: " + message);
     }
 }

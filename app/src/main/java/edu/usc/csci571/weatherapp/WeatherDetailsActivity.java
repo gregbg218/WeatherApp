@@ -3,14 +3,19 @@ package edu.usc.csci571.weatherapp;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 
 public class WeatherDetailsActivity extends AppCompatActivity {
     private static final String TAG = "WeatherDetailsActivity";
@@ -22,9 +27,8 @@ public class WeatherDetailsActivity extends AppCompatActivity {
     private String longitude;
     private String cityName;
     private int temperature;
-
-
-
+    private WeatherPagerAdapter adapter;
+    private JSONArray forecastData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +41,27 @@ public class WeatherDetailsActivity extends AppCompatActivity {
         longitude = intent.getStringExtra("longitude");
         cityName = intent.getStringExtra("city_name");
         temperature = intent.getIntExtra("temperature", 0);
+
+        Log.d(TAG, String.format("Received data in WeatherDetailsActivity {\n" +
+                "  Latitude: %s\n" +
+                "  Longitude: %s\n" +
+                "  City: %s\n" +
+                "  Temperature: %d\n" +
+                "}", latitude, longitude, cityName, temperature));
+
+        // Parse forecast data if available
+        String forecastDataStr = intent.getStringExtra("forecast_data");
+        if (forecastDataStr != null) {
+            try {
+                forecastData = new JSONArray(forecastDataStr);
+                Log.d(TAG, "Successfully parsed forecast data with " + forecastData.length() + " days");
+            } catch (JSONException e) {
+                Log.e(TAG, "Error parsing forecast data: " + e.getMessage());
+                Toast.makeText(this, "Error loading forecast data", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Log.w(TAG, "No forecast data received in intent");
+        }
 
         // Set city name in title
         TextView cityTitle = findViewById(R.id.cityTitle);
@@ -58,7 +83,14 @@ public class WeatherDetailsActivity extends AppCompatActivity {
         viewPager = findViewById(R.id.viewPager);
         tabLayout = findViewById(R.id.tabLayout);
 
-        WeatherPagerAdapter adapter = new WeatherPagerAdapter(this, latitude, longitude);
+        adapter = new WeatherPagerAdapter(this, latitude, longitude);
+
+        // Set forecast data if available
+        if (forecastData != null) {
+            Log.d(TAG, "Setting forecast data in adapter");
+            adapter.setForecastData(forecastData);
+        }
+
         viewPager.setAdapter(adapter);
         viewPager.setOffscreenPageLimit(2);
 
@@ -78,11 +110,24 @@ public class WeatherDetailsActivity extends AppCompatActivity {
                     break;
             }
         }).attach();
+
+        // Log the setup completion
+        Log.d(TAG, "ViewPager setup completed with " + adapter.getItemCount() + " pages");
     }
+
     private void shareOnTwitter() {
         String tweetText = "Check Out " + cityName + "'s Weather! It is " + temperature + "°F! #CSCI571WeatherSearch";
         String tweetUrl = "https://twitter.com/intent/tweet?text=" + Uri.encode(tweetText);
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(tweetUrl));
         startActivity(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up resources
+        if (viewPager != null) {
+            viewPager.setAdapter(null);
+        }
     }
 }

@@ -278,48 +278,106 @@ public class MainActivity extends AppCompatActivity {
         request.setTag(TAG + "_favorites");
         requestQueue.add(request);
     }
+
+    private void showLoading() {
+        if (findViewById(R.id.progressBar) != null) {
+            findViewById(R.id.progressBar).setVisibility(View.VISIBLE);
+        }
+        if (findViewById(R.id.mainContentLayout) != null) {
+            findViewById(R.id.mainContentLayout).setVisibility(View.GONE);
+        }
+    }
+
+    private void hideLoading() {
+        if (findViewById(R.id.progressBar) != null) {
+            findViewById(R.id.progressBar).setVisibility(View.GONE);
+        }
+        if (findViewById(R.id.mainContentLayout) != null) {
+            findViewById(R.id.mainContentLayout).setVisibility(View.VISIBLE);
+        }
+    }
     private void setupClickListeners() {
-        ImageView searchIcon = findViewById(R.id.imageView10);
-        searchIcon.setOnClickListener(v -> {
-            Log.d(TAG, "Search icon clicked, launching SearchActivity");
-            Intent intent = new Intent(MainActivity.this, SearchActivity.class);
-            intent.putExtra("latitude", latitude);
-            intent.putExtra("longitude", longitude);
-            intent.putExtra("locationInWords", locationInWords);
-            startActivity(intent);
-        });
-
         findViewById(R.id.cardView1).setOnClickListener(v -> {
-            Log.d(TAG, "Weather card clicked, launching WeatherDetailsActivity");
-            Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
-            intent.putExtra("latitude", latitude);
-            intent.putExtra("longitude", longitude);
-            intent.putExtra("city_name", locationInWords);
-            TextView tempView = findViewById(R.id.todayTemp);
-            String tempText = tempView.getText().toString();
-            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
-            intent.putExtra("temperature", temperature);
-            startActivity(intent);
-        });
+            Log.d(TAG, "Weather card clicked - Starting forecast API call sequence");
 
-        FloatingActionButton fab = findViewById(R.id.fab_favorite);
-        fab.setOnClickListener(v -> {
-            int selectedPosition = tabDots.getSelectedTabPosition();
-            if (selectedPosition > 0) {
-                try {
-                    JSONObject favorite = favoritesData.getJSONObject(selectedPosition - 1);
-                    String city = favorite.getString("city");
-                    String state = favorite.getString("state");
-                    Log.d(TAG, "Removing favorite: " + city + ", " + state);
-                    removeFavorite(city, state);
-                } catch (JSONException e) {
-                    Log.e(TAG, "Error getting favorite data: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
-                }
-            } else {
-                Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
-            }
+            // Show loading state
+            showLoading();
+
+            String forecastUrl = BASE_URL + "/api/weather/forecast" +
+                    "?latitude=" + latitude +
+                    "&longitude=" + longitude;
+
+            Log.d(TAG, String.format("Making forecast API call {\n" +
+                    "  URL: %s\n" +
+                    "  Latitude: %s\n" +
+                    "  Longitude: %s\n" +
+                    "}", forecastUrl, latitude, longitude));
+
+            JsonObjectRequest forecastRequest = new JsonObjectRequest(
+                    Request.Method.GET,
+                    forecastUrl,
+                    null,
+                    response -> {
+                        hideLoading(); // Hide loading on success
+                        Log.d(TAG, "Forecast API response received");
+
+                        try {
+                            if (response.has("success") && response.getBoolean("success")) {
+                                JSONArray forecastData = response.getJSONArray("data");
+                                Log.d(TAG, String.format("Successfully parsed forecast data {\n" +
+                                        "  Number of days: %d\n" +
+                                        "  Data: %s\n" +
+                                        "}", forecastData.length(), forecastData.toString()));
+
+                                // Create and launch intent
+                                Intent intent = new Intent(MainActivity.this, WeatherDetailsActivity.class);
+                                intent.putExtra("latitude", latitude);
+                                intent.putExtra("longitude", longitude);
+                                intent.putExtra("city_name", locationInWords);
+                                intent.putExtra("forecast_data", forecastData.toString());
+
+                                TextView tempView = findViewById(R.id.todayTemp);
+                                String tempText = tempView.getText().toString();
+                                int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+                                intent.putExtra("temperature", temperature);
+
+                                Log.d(TAG, "Starting WeatherDetailsActivity with forecast data");
+                                startActivity(intent);
+
+                            } else {
+                                Log.e(TAG, "API returned success:false - " + response.toString());
+                                showError("Error fetching forecast data");
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Error parsing forecast response: " + e.getMessage(), e);
+                            showError("Error processing weather data");
+                        }
+                    },
+                    error -> {
+                        hideLoading(); // Hide loading on error
+                        Log.e(TAG, String.format("Forecast API error {\n" +
+                                        "  Error: %s\n" +
+                                        "  Status Code: %d\n" +
+                                        "  Headers: %s\n" +
+                                        "}",
+                                error.getMessage(),
+                                error.networkResponse != null ? error.networkResponse.statusCode : -1,
+                                error.networkResponse != null ? error.networkResponse.headers : "none"));
+
+                        showError("Error fetching weather data");
+                    });
+
+            configureRequest(forecastRequest);
         });
+    }
+
+    private void configureRequest(JsonObjectRequest request) {
+        Log.d(TAG, "Configuring request with timeout=15000ms, retries=3");
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                15000,
+                3,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        requestQueue.add(request);
     }
 
 
