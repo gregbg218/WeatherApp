@@ -8,6 +8,9 @@ import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 import androidx.fragment.app.Fragment;
+
+import com.highsoft.highcharts.common.HIGradient;
+import com.highsoft.highcharts.common.HIStop;
 import com.highsoft.highcharts.core.HIChartView;
 import com.highsoft.highcharts.common.hichartsclasses.*;
 import com.highsoft.highcharts.common.HIColor;
@@ -15,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -84,15 +88,12 @@ public class WeeklyFragment extends Fragment {
             chart.setBackgroundColor(HIColor.initWithName("white"));
             options.setChart(chart);
 
-            // Remove title as it's in the layout
-            HITitle title = new HITitle();
-            title.setText("");
-            options.setTitle(title);
+
 
             // Y-Axis configuration
             HIYAxis yaxis = new HIYAxis();
             yaxis.setTitle(new HITitle());
-            yaxis.getTitle().setText("Temperature (°F)");
+            yaxis.getTitle().setText("Values");
             yaxis.setMin(30.0);
             yaxis.setMax(80.0);
             yaxis.setTickInterval(10.0);
@@ -123,9 +124,21 @@ public class WeeklyFragment extends Fragment {
             xAxes.add(xaxis);
             options.setXAxis(xAxes);
 
+            HITitle title = new HITitle();
+            title.setText("Temperature Variation by Day");
+            HISubtitle subtitle = new HISubtitle();
+            subtitle.setText("");
+            title.setAlign("center");
+            title.setStyle(new HICSSObject());
+            title.getStyle().setFontSize("18px");
+            title.getStyle().setColor("#333333");
+            options.setTitle(title);
+            options.setSubtitle(subtitle);
+
             // Series data processing
             HIArearange series = new HIArearange();
-            series.setName("Temperature Range");
+            series.setShowInLegend(false);
+
             ArrayList<Object[]> seriesData = new ArrayList<>();
             ArrayList<String> categories = new ArrayList<>();
 
@@ -151,10 +164,12 @@ public class WeeklyFragment extends Fragment {
             series.setData(seriesData);
             xaxis.setCategories(categories);
 
-            // Style the series
-            series.setColor(HIColor.initWithHexValue("#FF8C69")); // Peach color
-            series.setFillOpacity(0.3);
-            series.setLineWidth(1);
+            // Gradient configuration
+            HIGradient gradient = new HIGradient(0, 0, 0, 1);
+            LinkedList<HIStop> stops = new LinkedList<>();
+            stops.add(new HIStop(0, HIColor.initWithRGBA(255, 170, 100, 0.8)));
+            stops.add(new HIStop(1, HIColor.initWithRGBA(100, 170, 255, 0.8)));
+            series.setFillColor(HIColor.initWithLinearGradient(gradient, stops));
 
             // Configure tooltip
             HITooltip tooltip = new HITooltip();
