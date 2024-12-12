@@ -400,7 +400,7 @@ public class SearchActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 },
-                error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT).show()
+                error -> Toast.makeText(this, "Error fetching suggestions", Toast.LENGTH_SHORT)
         );
         requestQueue.add(request);
     }
@@ -685,9 +685,9 @@ public class SearchActivity extends AppCompatActivity {
                             }
                         } catch (JSONException e) {
                             Log.e(TAG, "Error parsing remove response: " + e.getMessage());
-                            Toast.makeText(SearchActivity.this,
-                                    "Error removing from favorites",
-                                    Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(SearchActivity.this,
+//                                    "Error removing from favorites",
+//                                    Toast.LENGTH_SHORT).show();
                         }
                     },
                     error -> {
@@ -701,9 +701,9 @@ public class SearchActivity extends AppCompatActivity {
 
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Error encoding URL: " + e.getMessage());
-            Toast.makeText(SearchActivity.this,
-                    "Error updating favorites",
-                    Toast.LENGTH_SHORT).show();
+//            Toast.makeText(SearchActivity.this,
+//                    "Error updating favorites",
+//                    Toast.LENGTH_SHORT).show();
         }
     }
 

@@ -56,7 +56,7 @@ public class WeatherDetailsActivity extends AppCompatActivity {
                 Log.d(TAG, "Successfully parsed weather data");
             } catch (JSONException e) {
                 Log.e(TAG, "Error parsing weather data: " + e.getMessage());
-                Toast.makeText(this, "Error loading weather data", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(this, "Error loading weather data", Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.w(TAG, "No weather data received in intent");
@@ -70,7 +70,7 @@ public class WeatherDetailsActivity extends AppCompatActivity {
                 Log.d(TAG, "Successfully parsed forecast data with " + forecastData.length() + " days");
             } catch (JSONException e) {
                 Log.e(TAG, "Error parsing forecast data: " + e.getMessage());
-                Toast.makeText(this, "Error loading forecast data", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(this, "Error loading forecast data", Toast.LENGTH_SHORT).show();
             }
         } else {
             Log.w(TAG, "No forecast data received in intent");

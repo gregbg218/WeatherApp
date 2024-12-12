@@ -438,7 +438,7 @@ public class MainActivity extends AppCompatActivity {
                     removeFavorite(city, state);
                 } catch (JSONException e) {
                     Log.e(TAG, "Error getting favorite data: " + e.getMessage());
-                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
                 }
             } else {
                 Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
@@ -660,17 +660,17 @@ public class MainActivity extends AppCompatActivity {
                             }
                         } catch (JSONException e) {
                             Log.e(TAG, "Error parsing remove response: " + e.getMessage());
-                            Toast.makeText(MainActivity.this,
-                                    "Error removing from favorites",
-                                    Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(MainActivity.this,
+//                                    "Error removing from favorites",
+//                                    Toast.LENGTH_SHORT).show();
                         }
                     },
                     error -> {
                         Log.e(TAG, "Error removing favorite: " +
                                 (error.getMessage() != null ? error.getMessage() : "Unknown error"));
-                        Toast.makeText(MainActivity.this,
-                                "Error removing from favorites",
-                                Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(MainActivity.this,
+//                                "Error removing from favorites",
+//                                Toast.LENGTH_SHORT).show();
                     }
             );
 
@@ -684,9 +684,9 @@ public class MainActivity extends AppCompatActivity {
 
         } catch (UnsupportedEncodingException e) {
             Log.e(TAG, "Error encoding URL: " + e.getMessage());
-            Toast.makeText(MainActivity.this,
-                    "Error removing from favorites",
-                    Toast.LENGTH_SHORT).show();
+//            Toast.makeText(MainActivity.this,
+//                    "Error removing from favorites",
+//                    Toast.LENGTH_SHORT).show();
         }
     }
     private void fetchAllWeatherData() {

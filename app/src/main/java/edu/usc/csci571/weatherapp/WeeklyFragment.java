@@ -42,7 +42,7 @@ public class WeeklyFragment extends Fragment {
 
         if (chartView == null) {
             Log.e(TAG, "chartView is null! Check if R.id.chart_view exists in fragment_weekly.xml");
-            Toast.makeText(requireContext(), "Error: Chart view not found", Toast.LENGTH_SHORT).show();
+//            Toast.makeText(requireContext(), "Error: Chart view not found", Toast.LENGTH_SHORT).show();
             return view;
         }
 
