@@ -42,6 +42,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class SearchActivity extends AppCompatActivity {
     private static final String TAG = "SearchActivity";
@@ -159,16 +160,117 @@ public class SearchActivity extends AppCompatActivity {
         requestQueue = Volley.newRequestQueue(this);
 
         // Setup details card click listener
+        // In SearchActivity.java
+        // In SearchActivity.java, replace the existing card click listener with:
+
         findViewById(R.id.cardView1).setOnClickListener(v -> {
-            Intent detailsIntent = new Intent(SearchActivity.this, WeatherDetailsActivity.class);
-            detailsIntent.putExtra("latitude", latitude);
-            detailsIntent.putExtra("longitude", longitude);
-            detailsIntent.putExtra("city_name", locationInWords);
-            TextView tempView = findViewById(R.id.todayTemp);
-            String tempText = tempView.getText().toString();
-            int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
-            detailsIntent.putExtra("temperature", temperature);
-            startActivity(detailsIntent);
+            Log.d(TAG, "Weather card clicked - Starting API call sequence");
+
+            // Show loading state
+            showLoading();
+
+            // Prepare URLs for both API calls
+            String forecastUrl = BASE_URL + "/api/weather/forecast" +
+                    "?latitude=" + latitude +
+                    "&longitude=" + longitude;
+
+            String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+            String dayWeatherUrl = BASE_URL + "/api/weather/day-weather" +
+                    "?latitude=" + latitude +
+                    "&longitude=" + longitude +
+                    "&date=" + todayDate;
+
+            Log.d(TAG, String.format("Making API calls {\n" +
+                    "  Forecast URL: %s\n" +
+                    "  Day Weather URL: %s\n" +
+                    "  Latitude: %s\n" +
+                    "  Longitude: %s\n" +
+                    "}", forecastUrl, dayWeatherUrl, latitude, longitude));
+
+            // Create requests for both APIs
+            JsonObjectRequest forecastRequest = new JsonObjectRequest(
+                    Request.Method.GET,
+                    forecastUrl,
+                    null,
+                    response -> {
+                        Log.d(TAG, "Forecast API response received");
+
+                        try {
+                            if (response.has("success") && response.getBoolean("success")) {
+                                JSONArray forecastData = response.getJSONArray("data");
+                                Log.d(TAG, String.format("Successfully parsed forecast data {\n" +
+                                        "  Number of days: %d\n" +
+                                        "  Data: %s\n" +
+                                        "}", forecastData.length(), forecastData.toString()));
+
+                                // Now make the day weather request
+                                JsonObjectRequest dayWeatherRequest = new JsonObjectRequest(
+                                        Request.Method.GET,
+                                        dayWeatherUrl,
+                                        null,
+                                        dayResponse -> {
+                                            hideLoading(); // Hide loading after both requests complete
+                                            Log.d(TAG, "Day weather API response received");
+
+                                            try {
+                                                if (dayResponse.has("success") && dayResponse.getBoolean("success")) {
+                                                    JSONObject weatherData = dayResponse.getJSONObject("data");
+                                                    Log.d(TAG, "Successfully parsed day weather data");
+
+                                                    // Create and launch intent with both data sets
+                                                    Intent detailsIntent = new Intent(SearchActivity.this, WeatherDetailsActivity.class);
+                                                    detailsIntent.putExtra("latitude", latitude);
+                                                    detailsIntent.putExtra("longitude", longitude);
+                                                    detailsIntent.putExtra("city_name", locationInWords);
+                                                    detailsIntent.putExtra("forecast_data", forecastData.toString());
+                                                    detailsIntent.putExtra("weather_data", weatherData.toString());
+
+                                                    TextView tempView = findViewById(R.id.todayTemp);
+                                                    String tempText = tempView.getText().toString();
+                                                    int temperature = Integer.parseInt(tempText.replaceAll("[^0-9]", ""));
+                                                    detailsIntent.putExtra("temperature", temperature);
+
+// Start the details activity
+                                                    Log.d(TAG, "Starting WeatherDetailsActivity with both forecast and weather data");
+                                                    startActivity(detailsIntent);
+
+                                                } else {
+                                                    Log.e(TAG, "Day weather API returned success:false - " + dayResponse.toString());
+                                                    showError("Error fetching weather data");
+                                                }
+                                            } catch (JSONException e) {
+                                                Log.e(TAG, "Error parsing day weather response: " + e.getMessage(), e);
+                                                showError("Error processing weather data");
+                                            }
+                                        },
+                                        error -> {
+                                            hideLoading();
+                                            Log.e(TAG, "Day weather API error: " + error.getMessage());
+                                            showError("Error fetching weather data");
+                                        });
+
+                                configureRequest(dayWeatherRequest);
+                                requestQueue.add(dayWeatherRequest);
+
+                            } else {
+                                hideLoading();
+                                Log.e(TAG, "Forecast API returned success:false - " + response.toString());
+                                showError("Error fetching forecast data");
+                            }
+                        } catch (JSONException e) {
+                            hideLoading();
+                            Log.e(TAG, "Error parsing forecast response: " + e.getMessage(), e);
+                            showError("Error processing weather data");
+                        }
+                    },
+                    error -> {
+                        hideLoading();
+                        Log.e(TAG, "Forecast API error: " + error.getMessage());
+                        showError("Error fetching weather data");
+                    });
+
+            configureRequest(forecastRequest);
+            requestQueue.add(forecastRequest);
         });
 
         // Setup FAB (Favorite button)
@@ -186,7 +288,13 @@ public class SearchActivity extends AppCompatActivity {
         }
     }
 
-
+    private void configureRequest(JsonObjectRequest request) {
+        Log.d(TAG, "Configuring request with timeout=15000ms, retries=3");
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                15000,
+                3,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+    }
     private void initializeViews() {
         searchAutoComplete = findViewById(R.id.search_autocomplete);
         progressBar = findViewById(R.id.progressBar);

@@ -988,9 +988,22 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onResume() {
         super.onResume();
-        setupFavoritesPager();  // Add this line to refresh the favorites
-        if (latitude == null || longitude == null) {
-            getCurrentLocationData();
+
+        // First clear any existing data
+        isDataLoaded = false;
+
+        // Reset tab selection to current location (first tab)
+        if (tabDots != null && tabDots.getTabCount() > 0) {
+            TabLayout.Tab firstTab = tabDots.getTabAt(0);
+            if (firstTab != null) {
+                firstTab.select();
+            }
         }
+
+        // Refresh favorites
+        setupFavoritesPager();
+
+        // Force refresh of current location data
+        getCurrentLocationData();
     }
 }
