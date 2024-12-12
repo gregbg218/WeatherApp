@@ -14,37 +14,41 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.android.volley.DefaultRetryPolicy;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Locale;
 
 public class TodayFragment extends Fragment {
     private static final String TAG = "TodayFragment";
     private View view;
-    private RequestQueue requestQueue;
     private TextView windSpeedValue, pressureValue, precipitationValue, temperatureValue;
     private TextView humidityValue, visibilityValue, cloudCoverValue, uvIndexValue, weatherStatus;
     private ImageView weatherIcon;
     private ProgressBar progressBar;
-
-    private static final String BASE_URL = "http://10.0.2.2:3001";
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         view = inflater.inflate(R.layout.fragment_today, container, false);
         initializeViews();
-        requestQueue = Volley.newRequestQueue(requireContext());
-        fetchTodayWeatherData();
+
+        Bundle args = getArguments();
+        if (args != null && args.containsKey("weather_data")) {
+            String weatherDataStr = args.getString("weather_data");
+            try {
+                JSONObject weatherData = new JSONObject(weatherDataStr);
+                Log.d(TAG, "Received weather data: " + weatherData.toString());
+                updateUI(weatherData);
+            } catch (JSONException e) {
+                Log.e(TAG, "Error parsing weather data: " + e.getMessage(), e);
+                showError("Error processing weather data");
+            }
+        } else {
+            Log.e(TAG, "No weather data found in arguments");
+            showError("Weather data not available");
+        }
+
         return view;
     }
 
@@ -60,69 +64,6 @@ public class TodayFragment extends Fragment {
         weatherStatus = view.findViewById(R.id.weatherStatus);
         weatherIcon = view.findViewById(R.id.weatherIcon);
         progressBar = view.findViewById(R.id.progressBar);
-    }
-
-    private void fetchTodayWeatherData() {
-        showLoading();
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        String todaysDate = formatter.format(new Date());
-
-        Bundle args = getArguments();
-        if (args == null) {
-            Log.e(TAG, "Arguments bundle is null");
-            showError("Error: Unable to fetch weather data");
-            return;
-        }
-
-        String latitude = args.getString("latitude");
-        String longitude = args.getString("longitude");
-
-        if (latitude == null || longitude == null) {
-            Log.e(TAG, "Latitude or longitude is null");
-            showError("Error: Invalid location data");
-            return;
-        }
-
-        Log.d(TAG, "Fetching weather data for lat: " + latitude + ", lon: " + longitude + ", date: " + todaysDate);
-        String url = BASE_URL+"/api/weather/day-weather" +
-                "?latitude=" + latitude +
-                "&longitude=" + longitude +
-                "&date=" + todaysDate;
-        Log.d(TAG, "API URL: " + url);
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
-                response -> {
-                    hideLoading();
-                    Log.d(TAG, "API Response: " + response.toString());
-                    try {
-                        if (response.has("success") && response.getBoolean("success")) {
-                            JSONObject data = response.getJSONObject("data");
-                            Log.d(TAG, "Weather data: " + data.toString());
-                            updateUI(data);
-                        } else {
-                            Log.e(TAG, "API returned success: false");
-                            showError("Invalid response from server");
-                        }
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Error parsing data: " + e.getMessage());
-                        showError("Error parsing weather data");
-                    }
-                },
-                error -> {
-                    hideLoading();
-                    Log.e(TAG, "Error fetching data: " + error.getMessage());
-                    if (error.networkResponse != null) {
-                        Log.e(TAG, "Error Status Code: " + error.networkResponse.statusCode);
-                    }
-                    showError("Error fetching weather data");
-                });
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                15000,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
-        requestQueue.add(request);
     }
 
     private void updateUI(final JSONObject data) {
@@ -149,7 +90,7 @@ public class TodayFragment extends Fragment {
                 double temperature = data.getDouble("temperature");
                 temperatureValue.setText(String.format(Locale.US, "%d°F", Math.round(temperature)));
 
-                // Humidity - Remove multiplication by 100 as backend already provides percentage
+                // Humidity
                 double humidity = data.getDouble("humidity");
                 humidityValue.setText(String.format(Locale.US, "%.2f%%", humidity));
 
@@ -157,7 +98,7 @@ public class TodayFragment extends Fragment {
                 double visibility = data.getDouble("visibility");
                 visibilityValue.setText(String.format(Locale.US, "%.2f mi", visibility));
 
-                // Cloud Cover - Remove multiplication by 100 as backend already provides percentage
+                // Cloud Cover
                 double cloudCover = data.getDouble("cloudCover");
                 cloudCoverValue.setText(String.format(Locale.US, "%.2f%%", cloudCover));
 
@@ -207,29 +148,9 @@ public class TodayFragment extends Fragment {
         }
     }
 
-    private void showLoading() {
-        if (progressBar != null) {
-            progressBar.setVisibility(View.VISIBLE);
-        }
-    }
-
-    private void hideLoading() {
-        if (progressBar != null) {
-            progressBar.setVisibility(View.GONE);
-        }
-    }
-
     private void showError(String message) {
         if (getContext() != null) {
             Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (requestQueue != null) {
-            requestQueue.cancelAll(TAG);
         }
     }
 }

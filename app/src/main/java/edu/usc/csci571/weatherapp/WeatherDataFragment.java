@@ -67,7 +67,7 @@ public class WeatherDataFragment extends Fragment {
 
             // Title configuration
             HITitle title = new HITitle();
-            title.setText("Weather Stats");
+            title.setText("Stat Summary");
             title.setStyle(new HICSSObject());
             title.getStyle().setFontSize("24px");
             options.setTitle(title);

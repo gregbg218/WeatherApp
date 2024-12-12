@@ -298,6 +298,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void setupClickListeners() {
+        // Search Icon Click Listener
+        ImageView searchIcon = findViewById(R.id.imageView10);
+        if (searchIcon != null) {
+            Log.d(TAG, "Setting up search icon click listener");
+            searchIcon.setVisibility(View.VISIBLE);
+            searchIcon.setOnClickListener(v -> {
+                Log.d(TAG, "Search icon clicked, launching SearchActivity");
+                Intent intent = new Intent(MainActivity.this, SearchActivity.class);
+                intent.putExtra("latitude", latitude);
+                intent.putExtra("longitude", longitude);
+                intent.putExtra("locationInWords", locationInWords);
+                startActivity(intent);
+            });
+        } else {
+            Log.e(TAG, "Search icon view not found!");
+        }
+
+        // Weather Card Click Listener
         findViewById(R.id.cardView1).setOnClickListener(v -> {
             Log.d(TAG, "Weather card clicked - Starting API call sequence");
 
@@ -379,15 +397,7 @@ public class MainActivity extends AppCompatActivity {
                                         },
                                         error -> {
                                             hideLoading();
-                                            Log.e(TAG, String.format("Day weather API error {\n" +
-                                                            "  Error: %s\n" +
-                                                            "  Status Code: %d\n" +
-                                                            "  Headers: %s\n" +
-                                                            "}",
-                                                    error.getMessage(),
-                                                    error.networkResponse != null ? error.networkResponse.statusCode : -1,
-                                                    error.networkResponse != null ? error.networkResponse.headers : "none"));
-
+                                            Log.e(TAG, "Day weather API error: " + error.getMessage());
                                             showError("Error fetching weather data");
                                         });
 
@@ -407,20 +417,32 @@ public class MainActivity extends AppCompatActivity {
                     },
                     error -> {
                         hideLoading();
-                        Log.e(TAG, String.format("Forecast API error {\n" +
-                                        "  Error: %s\n" +
-                                        "  Status Code: %d\n" +
-                                        "  Headers: %s\n" +
-                                        "}",
-                                error.getMessage(),
-                                error.networkResponse != null ? error.networkResponse.statusCode : -1,
-                                error.networkResponse != null ? error.networkResponse.headers : "none"));
-
+                        Log.e(TAG, "Forecast API error: " + error.getMessage());
                         showError("Error fetching weather data");
                     });
 
             configureRequest(forecastRequest);
             requestQueue.add(forecastRequest);
+        });
+
+        // Favorite Button Click Listener
+        FloatingActionButton fab = findViewById(R.id.fab_favorite);
+        fab.setOnClickListener(v -> {
+            int selectedPosition = tabDots.getSelectedTabPosition();
+            if (selectedPosition > 0) {
+                try {
+                    JSONObject favorite = favoritesData.getJSONObject(selectedPosition - 1);
+                    String city = favorite.getString("city");
+                    String state = favorite.getString("state");
+                    Log.d(TAG, "Removing favorite: " + city + ", " + state);
+                    removeFavorite(city, state);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Error getting favorite data: " + e.getMessage());
+                    Toast.makeText(MainActivity.this, "Error removing favorite", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(MainActivity.this, "Cannot remove current location", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
