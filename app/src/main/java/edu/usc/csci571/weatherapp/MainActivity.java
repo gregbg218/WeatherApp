@@ -46,7 +46,7 @@ import edu.usc.csci571.weatherapp.databinding.ActivityMainBinding;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
 
-    private static final String BASE_URL = "http://10.0.2.2:3001";
+    private static final String BASE_URL = "https://lastassignbacknd-343800739004.us-west1.run.app";
     private static int weatherApiCalls = 0;
     private static long lastResetTime = System.currentTimeMillis();
     private static final int API_CALL_LIMIT = 1000;
@@ -298,7 +298,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void setupClickListeners() {
-        // Search Icon Click Listener
+
         ImageView searchIcon = findViewById(R.id.imageView10);
         if (searchIcon != null) {
             Log.d(TAG, "Setting up search icon click listener");
@@ -315,11 +315,11 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Search icon view not found!");
         }
 
-        // Weather Card Click Listener
+
         findViewById(R.id.cardView1).setOnClickListener(v -> {
             Log.d(TAG, "Weather card clicked - Starting API call sequence");
 
-            // Show loading state
+
             showLoading();
 
             // Prepare URLs for both API calls

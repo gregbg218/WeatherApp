@@ -51,7 +51,7 @@ public class SearchActivity extends AppCompatActivity {
 
     private String selectedCity = null;
     private String selectedState = null;
-    private static final String BASE_URL = "http://10.0.2.2:3001";
+    private static final String BASE_URL = "https://lastassignbacknd-343800739004.us-west1.run.app";
 
     private AutoCompleteTextView searchAutoComplete;
     private RequestQueue requestQueue;
